@@ -1,0 +1,111 @@
+{% extends "doctor_base.html" %}
+
+{% block title %}Access & Audit Log - OmniCare AI{% endblock %}
+
+{% block content %}
+<div class="doctor-dashboard" style="padding: 24px; max-width: 1200px; margin: 0 auto;">
+    <div class="dashboard-header" style="margin-bottom: 24px;">
+        <div>
+            <span class="dashboard-label" style="font-size: 11px; font-weight: 700; color: #087f79; text-transform: uppercase;">DOCTOR PORTAL</span>
+            <h1 style="margin: 6px 0; font-size: 26px; color: #142b4c;">Access &amp; Audit Log</h1>
+            <p style="color: #627694; margin: 0;">Immutable record of patient access requests, active authorizations, and clinical operations.</p>
+        </div>
+    </div>
+
+    <!-- RECENT ACCESS PERMISSIONS -->
+    <section style="background: #fff; border: 1px solid #dce6f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+        <h2 style="font-size: 18px; color: #142b4c; margin: 0 0 16px;">🛡️ Patient Access Requests & Consent Grants</h2>
+        {% if access_records and access_records|length > 0 %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #edf1f5; color: #627694;">
+                        <th style="padding: 10px 8px;">Request ID</th>
+                        <th style="padding: 10px 8px;">Patient ID</th>
+                        <th style="padding: 10px 8px;">Status</th>
+                        <th style="padding: 10px 8px;">Access Type</th>
+                        <th style="padding: 10px 8px;">Requested At</th>
+                        <th style="padding: 10px 8px;">Expires At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in access_records %}
+                    <tr style="border-bottom: 1px solid #edf1f5;">
+                        <td style="padding: 10px 8px; font-family: monospace;">{{ req.id[:8] }}...</td>
+                        <td style="padding: 10px 8px; font-family: monospace;">{{ req.patient_id[:8] }}...</td>
+                        <td style="padding: 10px 8px;">
+                            {% if req.status == 'active' %}
+                                <span style="background: #e6f9f0; color: #13834f; padding: 3px 8px; border-radius: 20px; font-weight: 700;">Active</span>
+                            {% elif req.status == 'revoked' %}
+                                <span style="background: #fff4f4; color: #d52d36; padding: 3px 8px; border-radius: 20px; font-weight: 700;">Revoked</span>
+                            {% elif req.status == 'expired' %}
+                                <span style="background: #f1f3f7; color: #627694; padding: 3px 8px; border-radius: 20px; font-weight: 700;">Expired</span>
+                            {% else %}
+                                <span style="background: #fff9eb; color: #a85b00; padding: 3px 8px; border-radius: 20px; font-weight: 700;">{{ req.status|capitalize }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 10px 8px;">{{ req.access_type or 'temporary' }}</td>
+                        <td style="padding: 10px 8px; color: #627694;">{{ req.requested_at or '—' }}</td>
+                        <td style="padding: 10px 8px; color: #627694;">{{ req.expires_at or 'N/A' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color: #627694; font-size: 13px; margin: 0;">No access requests recorded yet.</p>
+        {% endif %}
+    </section>
+
+    <!-- CLINICAL COPILOT AUDIT TRAIL -->
+    <section style="background: #fff; border: 1px solid #dce6f0; border-radius: 12px; padding: 20px;">
+        <h2 style="font-size: 18px; color: #142b4c; margin: 0 0 16px;">📜 Clinical Activity & Copilot Query Audit Trail</h2>
+        {% if audit_logs and audit_logs|length > 0 %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #edf1f5; color: #627694;">
+                        <th style="padding: 10px 8px;">Timestamp (UTC)</th>
+                        <th style="padding: 10px 8px;">Action</th>
+                        <th style="padding: 10px 8px;">Status</th>
+                        <th style="padding: 10px 8px;">Patients In Scope</th>
+                        <th style="padding: 10px 8px;">Details / Metadata</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in audit_logs %}
+                    <tr style="border-bottom: 1px solid #edf1f5;">
+                        <td style="padding: 10px 8px; color: #627694;">{{ log.timestamp }}</td>
+                        <td style="padding: 10px 8px; font-weight: 700; color: #142b4c;">{{ log.action }}</td>
+                        <td style="padding: 10px 8px;">
+                            <span style="background: {% if log.status == 'SUCCESS' %}#e6f9f0; color: #13834f{% elif log.status == 'DENIED' %}#fff4f4; color: #d52d36{% else %}#f1f3f7; color: #627694{% endif %}; padding: 2px 7px; border-radius: 12px; font-weight: 700; font-size: 10px;">
+                                {{ log.status }}
+                            </span>
+                        </td>
+                        <td style="padding: 10px 8px;">{{ log.patient_count }} patient(s)</td>
+                        <td style="padding: 10px 8px; color: #627694; font-family: monospace; font-size: 11px;">
+                            {% if log.metadata.query %}
+                                Query: "{{ log.metadata.query }}"
+                            {% elif log.metadata.alert_id %}
+                                Alert {{ log.metadata.alert_id }} reviewed
+                            {% elif log.metadata.abnormal_count is defined %}
+                                Abnormal: {{ log.metadata.abnormal_count }}, Overdue: {{ log.metadata.followup_count }}
+                            {% else %}
+                                {{ log.metadata|tojson }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-patients" style="text-align: center; padding: 40px 20px;">
+            <div class="empty-icon" style="font-size: 36px; margin-bottom: 12px;">🔐</div>
+            <h3 style="margin: 0 0 8px; color: #142b4c;">No clinical copilot actions logged yet</h3>
+            <p style="color: #627694; margin: 0;">When you view clinical briefings or query authorized records, audit logs will be permanently recorded here.</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

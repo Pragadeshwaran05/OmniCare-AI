@@ -1,0 +1,289 @@
+
+{% extends "doctor_base.html" %}
+
+{% block title %}Guest Patient Records | OmniCare AI{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet"
+      href="{{ url_for('static', filename='css/guest_patient.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="guest-page">
+
+    <!-- PAGE HEADER -->
+    <section class="guest-page-header">
+        <div class="guest-heading">
+            <span class="guest-eyebrow">
+                <span class="guest-eyebrow-dot"></span>
+                DOCTOR PORTAL
+            </span>
+
+            <h1>Guest Patient <span>Records</span></h1>
+
+            <p>
+                Create temporary patient profiles, organize medical reports,
+                and review available health information securely.
+            </p>
+        </div>
+
+        <div class="guest-header-badge">
+            <span class="guest-badge-icon">✚</span>
+            Temporary records
+        </div>
+    </section>
+
+    <!-- FLASH MESSAGES -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="guest-flash-list">
+                {% for category, message in messages %}
+                    <div class="guest-flash guest-flash-{{ category }}">
+                        <span>{{ message }}</span>
+                        <button type="button"
+                                class="guest-flash-close"
+                                aria-label="Dismiss message"
+                                onclick="this.parentElement.remove()">×</button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- TOP SUMMARY CARDS -->
+    <section class="guest-stats-grid">
+        <article class="guest-stat-card">
+            <div class="guest-stat-icon guest-stat-teal">♙</div>
+            <div>
+                <span class="guest-stat-label">Guest profiles</span>
+                <strong>{{ guests|length if guests else 0 }}</strong>
+                <small>Created by you</small>
+            </div>
+        </article>
+
+        <article class="guest-stat-card">
+            <div class="guest-stat-icon guest-stat-green">✓</div>
+            <div>
+                <span class="guest-stat-label">Active profiles</span>
+                <strong>{{ guests|selectattr('status', 'equalto', 'active')|list|length if guests else 0 }}</strong>
+                <small>Available for authorized access</small>
+            </div>
+        </article>
+
+        <article class="guest-stat-card">
+            <div class="guest-stat-icon guest-stat-blue">▤</div>
+            <div>
+                <span class="guest-stat-label">Temporary access</span>
+                <strong>Protected</strong>
+                <small>Doctor-authorized workflow</small>
+            </div>
+        </article>
+    </section>
+
+    <!-- CREATE GUEST PROFILE -->
+    <section class="guest-create-card" id="create-guest">
+        <div class="guest-section-heading">
+            <div class="guest-section-icon">＋</div>
+            <div>
+                <h2>Create Guest Patient</h2>
+                <p>Create a temporary profile for a patient without an account.</p>
+            </div>
+        </div>
+
+        <div class="guest-form-note">
+            <span>ⓘ</span>
+            <p>
+                Enter only the details needed to identify the patient.
+                Guest records remain separate from registered patient records.
+            </p>
+        </div>
+
+        <form action="{{ url_for('create_guest_patient') }}"
+              method="POST"
+              class="guest-create-form">
+
+            <div class="guest-form-grid">
+                <div class="guest-form-field guest-field-full">
+                    <label for="full_name">Patient full name <span>*</span></label>
+                    <input type="text"
+                           id="full_name"
+                           name="full_name"
+                           placeholder="Enter patient's full name"
+                           maxlength="120"
+                           autocomplete="off"
+                           required>
+                </div>
+
+                <div class="guest-form-field">
+                    <label for="date_of_birth">Date of birth</label>
+                    <input type="date"
+                           id="date_of_birth"
+                           name="date_of_birth">
+                </div>
+
+                <div class="guest-form-field">
+                    <label for="gender">Gender</label>
+                    <select id="gender" name="gender">
+                        <option value="">Select gender</option>
+                        <option value="Female">Female</option>
+                        <option value="Male">Male</option>
+                        <option value="Other">Other</option>
+                        <option value="Prefer not to say">Prefer not to say</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="guest-form-footer">
+                <p><span>*</span> Required field</p>
+                <button type="reset" class="guest-btn guest-btn-secondary">
+                    Clear form
+                </button>
+                <button type="submit" class="guest-btn guest-btn-primary">
+                    <span>＋</span> Create Guest Record
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <!-- EXISTING GUEST PROFILES -->
+    <section class="guest-list-section">
+        <div class="guest-list-header">
+            <div>
+                <span class="guest-eyebrow">PATIENT MANAGEMENT</span>
+                <h2>Your Guest Patients</h2>
+                <p>Open a profile to continue to its medical workspace.</p>
+            </div>
+
+            <label class="guest-search">
+                <span>⌕</span>
+                <input type="search"
+                       id="guestSearch"
+                       placeholder="Search name or guest code..."
+                       aria-label="Search guest patients">
+            </label>
+        </div>
+
+        {% if guests %}
+            <div class="guest-list-grid" id="guestList">
+                {% for guest in guests %}
+                    <article class="guest-patient-card"
+                             data-search="{{ (guest.full_name ~ ' ' ~ guest.guest_code)|lower }}">
+
+                        <div class="guest-card-top">
+                            <div class="guest-avatar">
+                                {{ guest.full_name[:1]|upper if guest.full_name else '?' }}
+                            </div>
+
+                            <span class="guest-status
+                                {% if guest.status == 'active' %}
+                                    guest-status-active
+                                {% else %}
+                                    guest-status-closed
+                                {% endif %}">
+                                <span></span>
+                                {{ guest.status|capitalize }}
+                            </span>
+                        </div>
+
+                        <h3>{{ guest.full_name }}</h3>
+                        <p class="guest-code">{{ guest.guest_code }}</p>
+
+                        <div class="guest-patient-details">
+                            <div>
+                                <span>Date of birth</span>
+                                <strong>
+                                    {{ guest.date_of_birth if guest.date_of_birth else 'Not provided' }}
+                                </strong>
+                            </div>
+                            <div>
+                                <span>Gender</span>
+                                <strong>
+                                    {{ guest.gender if guest.gender else 'Not provided' }}
+                                </strong>
+                            </div>
+                        </div>
+
+                        <div class="guest-card-footer">
+                            {% if guest.status == 'active' %}
+                              <a
+    href="{{ url_for(
+        'doctor_guest_workspace',
+        guest_patient_id=guest.id
+    ) }}"
+    class="guest-open-btn"
+>
+    Open Workspace →
+</a>
+                            {% else %}
+                                <span class="guest-closed-note">
+                                    This guest profile is closed.
+                                </span>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+
+            <div class="guest-no-search-results" id="guestNoResults" hidden>
+                <div>⌕</div>
+                <h3>No matching guest patients</h3>
+                <p>Try searching with a different name or guest code.</p>
+            </div>
+        {% else %}
+            <div class="guest-empty-state">
+                <div class="guest-empty-illustration">
+                    <span>♙</span>
+                    <i>＋</i>
+                </div>
+                <h3>No guest patients yet</h3>
+                <p>
+                    Create a temporary guest profile above to begin organizing
+                    that patient's medical documents.
+                </p>
+                <a href="#create-guest" class="guest-btn guest-btn-primary">
+                    Create First Guest Record
+                </a>
+            </div>
+        {% endif %}
+    </section>
+
+    <!-- PRIVACY REMINDER -->
+    <aside class="guest-privacy-note">
+        <span class="guest-privacy-icon">♢</span>
+        <div>
+            <h3>Patient privacy matters</h3>
+            <p>
+                Only access records when authorized. Keep guest documents
+                separate from registered patient data and follow your
+                organization's privacy procedures.
+            </p>
+        </div>
+    </aside>
+
+</main>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("guestSearch");
+    const cards = document.querySelectorAll(".guest-patient-card");
+    const noResults = document.getElementById("guestNoResults");
+
+    if (!searchInput) return;
+
+    searchInput.addEventListener("input", function () {
+        const query = this.value.trim().toLowerCase();
+        let visibleCount = 0;
+
+        cards.forEach(function (card) {
+            const matches = (card.dataset.search || "").includes(query);
+            card.hidden = !matches;
+            if (matches) visibleCount++;
+        });
+
+        if (noResults) {
+            noResults.hidden = visibleCount !== 0;
+        }
+    });
+});
+</script>
+{% endblock %}

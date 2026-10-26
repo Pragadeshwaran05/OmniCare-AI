@@ -1,0 +1,66 @@
+[
+  {
+    "doctor_id": "ea83806c-f033-4012-944b-22098514d9e9",
+    "alert_id": "test-alert-123",
+    "alert_type": "abnormal_report",
+    "patient_id": "a8360a17-d8a0-4524-bcc2-b1b4775e5c4f",
+    "review_notes": "Reviewed by clinician",
+    "reviewed_at": "2026-10-24T12:48:59.033798+00:00"
+  },
+  {
+    "doctor_id": "ea83806c-f033-4012-944b-22098514d9e9",
+    "alert_id": "test-alert-123",
+    "alert_type": "abnormal_report",
+    "patient_id": "a8360a17-d8a0-4524-bcc2-b1b4775e5c4f",
+    "review_notes": "Reviewed by clinician",
+    "reviewed_at": "2026-10-24T13:08:23.203067+00:00"
+  },
+  {
+    "doctor_id": "ea83806c-f033-4012-944b-22098514d9e9",
+    "alert_id": "test-alert-123",
+    "alert_type": "abnormal_report",
+    "patient_id": "a8360a17-d8a0-4524-bcc2-b1b4775e5c4f",
+    "review_notes": "Reviewed by clinician",
+    "reviewed_at": "2026-10-24T13:12:42.957848+00:00"
+  },
+  {
+    "doctor_id": "ea83806c-f033-4012-944b-22098514d9e9",
+    "alert_id": "test-review-001",
+    "alert_type": "abnormal_report",
+    "patient_id": "a8360a17-d8a0-4524-bcc2-b1b4775e5c4f",
+    "review_notes": "Reviewed by clinician in test simulation.",
+    "reviewed_at": "2026-10-24T13:52:36.727045+00:00"
+  },
+  {
+    "doctor_id": "ea83806c-f033-4012-944b-22098514d9e9",
+    "alert_id": "test-alert-123",
+    "alert_type": "abnormal_report",
+    "patient_id": "a8360a17-d8a0-4524-bcc2-b1b4775e5c4f",
+    "review_notes": "Reviewed by clinician",
+    "reviewed_at": "2026-10-24T13:54:43.305576+00:00"
+  },
+  {
+    "doctor_id": "ea83806c-f033-4012-944b-22098514d9e9",
+    "alert_id": "test-alert-123",
+    "alert_type": "abnormal_report",
+    "patient_id": "a8360a17-d8a0-4524-bcc2-b1b4775e5c4f",
+    "review_notes": "Reviewed by clinician",
+    "reviewed_at": "2026-10-24T14:03:31.423428+00:00"
+  },
+  {
+    "doctor_id": "ea83806c-f033-4012-944b-22098514d9e9",
+    "alert_id": "test-alert-123",
+    "alert_type": "abnormal_report",
+    "patient_id": "a8360a17-d8a0-4524-bcc2-b1b4775e5c4f",
+    "review_notes": "Reviewed by clinician",
+    "reviewed_at": "2026-10-24T14:12:36.076874+00:00"
+  },
+  {
+    "doctor_id": "ea83806c-f033-4012-944b-22098514d9e9",
+    "alert_id": "test-review-001",
+    "alert_type": "abnormal_report",
+    "patient_id": "a8360a17-d8a0-4524-bcc2-b1b4775e5c4f",
+    "review_notes": "Reviewed by clinician in test simulation.",
+    "reviewed_at": "2026-10-24T14:13:46.255211+00:00"
+  }
+]

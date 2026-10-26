@@ -1,0 +1,283 @@
+/* ============================================================
+   OMNICARE AI — GUEST PATIENT WORKSPACE STYLES
+   Scope: Guest workspace extensions and upload components.
+   Base styles inherited from doctor_patient_workspace.css.
+   ============================================================ */
+
+/* FLASH MESSAGES */
+.workspace-flash-container {
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.workspace-flash-message {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    box-shadow: 0 4px 14px rgba(18, 63, 99, 0.04);
+}
+
+.workspace-flash-message .flash-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.workspace-flash-message.success {
+    background: #eefbf7;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+}
+
+.workspace-flash-message.error {
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+/* GUEST UPLOAD CARD */
+.workspace-upload-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 24px 26px;
+    margin-bottom: 28px;
+    box-shadow: 0 4px 18px rgba(18, 63, 99, 0.04);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.workspace-upload-card:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 8px 24px rgba(18, 63, 99, 0.06);
+}
+
+.workspace-upload-header {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.workspace-upload-title-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.workspace-upload-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: #eaf8f6;
+    color: #147b75;
+    font-size: 20px;
+    flex-shrink: 0;
+    border: 1px solid #ccece7;
+}
+
+.workspace-upload-title-wrap h3 {
+    margin: 0 0 4px;
+    color: #0f172a;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.workspace-upload-title-wrap p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* UPLOAD FORM */
+.workspace-upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.workspace-upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+
+.workspace-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.workspace-form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.workspace-form-group label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.workspace-form-group label .required {
+    color: #ef4444;
+}
+
+.workspace-form-group label .optional {
+    color: #94a3b8;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.workspace-input,
+.workspace-select,
+.workspace-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #0f172a;
+    background: #ffffff;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.workspace-input:focus,
+.workspace-select:focus,
+.workspace-textarea:focus {
+    border-color: #168b83;
+    box-shadow: 0 0 0 3px rgba(22, 139, 131, 0.15);
+}
+
+.workspace-textarea {
+    resize: vertical;
+    min-height: 58px;
+    line-height: 1.5;
+}
+
+/* FILE DROPZONE & SUBMIT FOOTER */
+.workspace-upload-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding-top: 6px;
+}
+
+.workspace-file-dropzone {
+    flex: 1;
+    position: relative;
+}
+
+.workspace-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+.workspace-file-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 10px;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.workspace-file-label:hover {
+    border-color: #168b83;
+    background: #f0fdf9;
+}
+
+.workspace-file-label .file-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.file-text-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+
+.file-text-main {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-text-sub {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.workspace-upload-submit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 24px;
+    background: linear-gradient(135deg, #147b75 0%, #168b83 100%);
+    border: 1px solid #0f625e;
+    border-radius: 10px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(22, 139, 131, 0.25);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.workspace-upload-submit-btn:hover {
+    background: linear-gradient(135deg, #0f625e 0%, #147b75 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(22, 139, 131, 0.35);
+}
+
+.workspace-upload-submit-btn:active {
+    transform: translateY(0);
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 900px) {
+    .workspace-upload-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .workspace-upload-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .workspace-upload-submit-btn {
+        width: 100%;
+    }
+}

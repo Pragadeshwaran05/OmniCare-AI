@@ -1,0 +1,98 @@
+
+# ==============================
+# Environment variables & secrets
+# ==============================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+credentials.json
+
+# ==============================
+# Python
+# ==============================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+wheels/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ==============================
+# Virtual environments
+# ==============================
+venv/
+.venv/
+env/
+ENV/
+
+# ==============================
+# IDEs & editors
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==============================
+# OS files
+# ==============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==============================
+# Logs
+# ==============================
+*.log
+logs/
+
+# ==============================
+# Local databases
+# ==============================
+*.sqlite
+*.sqlite3
+*.db
+
+# ==============================
+# Uploaded files & private data
+# ==============================
+uploads/*
+!uploads/.gitkeep
+instance/
+tmp/
+temp/
+
+# ==============================
+# ML models and generated artifacts
+# ==============================
+*.joblib
+*.pkl
+*.h5
+*.keras
+*.onnx
+
+# ==============================
+# Frontend dependencies
+# ==============================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ==============================
+# Test artifacts
+# ==============================
+.coverage.*
+coverage.xml
+test-results/

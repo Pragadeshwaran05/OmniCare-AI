@@ -1,0 +1,1557 @@
+{% extends "doctor_base.html" %}
+
+{% block title %}Clinical Copilot | OmniCare AI{% endblock %}
+
+{% block content %}
+
+<div class="clinical-copilot-page">
+
+    <!-- PAGE HEADER -->
+    <section class="copilot-header">
+        <div class="copilot-heading">
+            <div class="copilot-icon">🤖</div>
+
+            <div>
+                <h1>
+                    Clinical Copilot
+                    <span class="copilot-badge">
+                        Practice-Level AI Assistant
+                    </span>
+                </h1>
+
+                <p>
+                    Your AI-powered clinical assistant across authorized
+                    patients. Identify risks, follow-ups, and key insights.
+                </p>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button id="refreshBriefingBtn" type="button" title="Refresh briefing from live records" style="display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #fff; border: 1px solid var(--cc-line); border-radius: 11px; cursor: pointer; color: var(--cc-ink); font-weight: 700; font-size: 12px; transition: all .15s;">
+                <span id="refreshIcon">🔄</span> Refresh
+            </button>
+            <div class="copilot-date">
+                <span>▦</span>
+                <div>
+                    <small>Today</small>
+                    <strong id="todayLabel">Today's briefing</strong>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- DAILY BRIEFING -->
+    <section class="copilot-briefing-grid">
+
+        <button class="copilot-metric red"
+                data-filter="abnormal_reports">
+            <span class="metric-icon">📄</span>
+            <span class="metric-content">
+                <span class="metric-title">Abnormal Reports</span>
+                <strong id="abnormalCount">—</strong>
+                <span class="metric-description">
+                    Patients with flagged lab results
+                </span>
+            </span>
+            <span class="metric-arrow">›</span>
+        </button>
+
+        <button class="copilot-metric amber"
+                data-filter="overdue_followups">
+            <span class="metric-icon">🗓️</span>
+            <span class="metric-content">
+                <span class="metric-title">Overdue Follow-ups</span>
+                <strong id="followupCount">—</strong>
+                <span class="metric-description">
+                    Patients requiring follow-up review
+                </span>
+            </span>
+            <span class="metric-arrow">›</span>
+        </button>
+
+        <button class="copilot-metric blue"
+                data-filter="access_expiring_today">
+            <span class="metric-icon">🛡️</span>
+            <span class="metric-content">
+                <span class="metric-title">Access Expiring Today</span>
+                <strong id="expiringCount">—</strong>
+                <span class="metric-description">
+                    Consent grants expiring today
+                </span>
+            </span>
+            <span class="metric-arrow">›</span>
+        </button>
+
+        <button class="copilot-metric purple"
+                data-filter="worsening_trends">
+            <span class="metric-icon">📈</span>
+            <span class="metric-content">
+                <span class="metric-title">Worsening Trends</span>
+                <strong id="worseningCount">—</strong>
+                <span class="metric-description">
+                    Patients with concerning trends
+                </span>
+            </span>
+            <span class="metric-arrow">›</span>
+        </button>
+
+    </section>
+
+    <!-- MAIN DASHBOARD -->
+    <section class="copilot-dashboard-grid">
+
+        <!-- PRIORITY PATIENTS -->
+        <section class="copilot-card priority-card">
+
+            <div class="copilot-card-header">
+                <h2>👥 Priority Patients</h2>
+                <button type="button"
+                        class="copilot-text-button"
+                        id="viewPriority">
+                    View All →
+                </button>
+            </div>
+
+            <p class="copilot-card-description">
+                Patients who may need attention soonest based on
+                documented findings.
+            </p>
+
+            <div id="priorityList" class="priority-patient-list">
+                <p class="copilot-loading">
+                    Loading consent-authorized patient data…
+                </p>
+            </div>
+
+        </section>
+
+        <!-- CLINICAL COPILOT CHAT -->
+        <section class="copilot-card copilot-chat-card">
+
+            <div class="copilot-card-header">
+                <h2>🤖 Clinical Copilot</h2>
+                <span class="copilot-status-badge">
+                    Practice-Wide Analysis
+                </span>
+            </div>
+
+            <p class="copilot-card-description">
+                Ask questions about your authorized patients and review
+                evidence-backed answers with source records.
+            </p>
+
+            <div class="copilot-suggested-questions">
+
+                <button type="button" data-question="Which patients have HbA1c above 8%?">
+                    📊 Which patients have HbA1c above 8%?
+                </button>
+
+                <button type="button" data-question="Show overdue follow-ups">
+                    🗓️ Show overdue follow-ups
+                </button>
+
+                <button type="button" data-question="Which patients have high blood pressure?">
+                    ❤️ Which patients have high blood pressure?
+                </button>
+
+                <button type="button" data-question="Which patients are taking Metformin?">
+                    💊 Patients taking Metformin
+                </button>
+
+                <button type="button" data-question="Show recent abnormal lab results">
+                    🧪 Recent abnormal lab results
+                </button>
+
+                <button type="button" data-question="Which patients have a documented drug interaction risk?">
+                    ⚠️ Drug interaction risks
+                </button>
+
+            </div>
+
+            <div id="copilotMessages"
+                 class="copilot-messages"
+                 aria-live="polite">
+
+                <div class="copilot-message">
+                    <div class="copilot-message-icon">🤖</div>
+
+                    <div class="copilot-message-content">
+                        <strong>Clinical Copilot</strong>
+
+                        <p>
+                            Hello, Doctor. I can summarize information from
+                            patients who have active, valid consent for
+                            your access. Ask a question or choose a
+                            suggested query to begin.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+
+            <form id="copilotQuestionForm" class="copilot-input-form">
+
+                <input
+                    id="copilotQuestionInput"
+                    type="text"
+                    maxlength="1000"
+                    placeholder="Ask about your authorized patients…"
+                    autocomplete="off"
+                    required
+                >
+
+                <button type="submit">Ask ➤</button>
+
+            </form>
+
+        </section>
+
+        <!-- RIGHT COLUMN -->
+        <div class="copilot-right-column">
+
+            <!-- CONSENT STATUS -->
+            <section class="copilot-card">
+
+                <div class="copilot-card-header">
+                    <h2>🔐 Consent Status</h2>
+
+                    <button type="button"
+                            class="copilot-text-button"
+                            id="viewConsent">
+                        View All →
+                    </button>
+                </div>
+
+                <p class="copilot-card-description">
+                    Overview of patient access and consent status.
+                </p>
+
+                <div class="copilot-consent-content">
+
+                    <div class="copilot-donut">
+                        <div>
+                            <strong id="scopeCount">—</strong>
+                            <span>Patients in scope</span>
+                        </div>
+                    </div>
+
+                    <div class="copilot-consent-legend">
+
+                        <div>
+                            <span class="legend-dot active-dot"></span>
+                            Active Access
+                            <strong id="activeConsent">—</strong>
+                        </div>
+
+                        <div>
+                            <span class="legend-dot expiring-dot"></span>
+                            Expiring Today
+                            <strong id="consentExpiring">—</strong>
+                        </div>
+
+                        <div>
+                            <span class="legend-dot expired-dot"></span>
+                            Expired
+                            <strong id="consentExpired">—</strong>
+                        </div>
+
+                        <div>
+                            <span class="legend-dot revoked-dot"></span>
+                            Revoked
+                            <strong id="consentRevoked">—</strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="copilot-consent-note" id="scopeNote">
+                    Only patients with active, unexpired consent should
+                    be included in clinical analysis.
+                </div>
+
+            </section>
+
+            <!-- TREND SUMMARY -->
+            <section class="copilot-card">
+
+                <div class="copilot-card-header">
+                    <h2>📊 Cross-Patient Trends</h2>
+
+                    <button type="button"
+                            class="copilot-text-button"
+                            id="viewTrends">
+                        View Details →
+                    </button>
+                </div>
+
+                <p class="copilot-card-description">
+                    Summary of calculated health trends across
+                    authorized patients.
+                </p>
+
+                <div class="copilot-trend-counts">
+
+                    <div class="trend-count worsening">
+                        <strong id="trendWorsening">—</strong>
+                        <span>Worsening</span>
+                    </div>
+
+                    <div class="trend-count improving">
+                        <strong id="trendImproving">—</strong>
+                        <span>Improving</span>
+                    </div>
+
+                    <div class="trend-count stable">
+                        <strong id="trendStable">—</strong>
+                        <span>Stable</span>
+                    </div>
+
+                </div>
+
+                <div id="copilotTrendChart"
+                     class="copilot-trend-chart">
+                    Trend chart will appear when calculated trend data
+                    is available.
+                </div>
+
+            </section>
+
+            <!-- MEDICATION SAFETY -->
+            <section class="copilot-card">
+
+                <div class="copilot-card-header">
+                    <h2>🧪 Medication Safety Sweep</h2>
+                </div>
+
+                <p class="copilot-card-description">
+                    Potential medication and allergy concerns for
+                    clinician review.
+                </p>
+
+                <div id="copilotSafetyResults"
+                     class="copilot-safety-results">
+                    Safety results will appear when the verified
+                    medication-safety endpoint is connected.
+                </div>
+
+            </section>
+
+        </div>
+
+    </section>
+
+    <!-- DISCLAIMER -->
+    <div class="copilot-disclaimer">
+        <span>⚠️</span>
+
+        <p>
+            <strong>Clinical Decision Support Only:</strong>
+            OmniCare AI presents information from authorized medical
+            records to support review. It does not diagnose or prescribe.
+            Final clinical decisions remain the responsibility of the
+            doctor. Verify every result against its cited source record.
+        </p>
+    </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_css %}
+<style>
+/* Clinical Copilot styles are scoped to this page to protect existing modules. */
+
+.clinical-copilot-page {
+    --cc-teal: #087f79;
+    --cc-ink: #142b4c;
+    --cc-muted: #627694;
+    --cc-line: #dce6f0;
+    color: var(--cc-ink);
+    width: 100%;
+    min-width: 0;
+}
+
+.clinical-copilot-page * {
+    box-sizing: border-box;
+}
+
+.copilot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 22px;
+}
+
+.copilot-heading {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.copilot-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #e7e9ff, #f4e9ff);
+    display: grid;
+    place-items: center;
+    font-size: 27px;
+    flex-shrink: 0;
+}
+
+.copilot-header h1 {
+    font-size: clamp(22px, 2vw, 29px);
+    margin: 0 0 7px;
+}
+
+.copilot-header p {
+    color: var(--cc-muted);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.copilot-badge,
+.copilot-status-badge {
+    display: inline-block;
+    background: #e9faf8;
+    border: 1px solid #a4e3dc;
+    color: #087f79;
+    border-radius: 30px;
+    padding: 5px 9px;
+    font-size: 10px;
+    font-weight: 750;
+    vertical-align: middle;
+}
+
+.copilot-date {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    border: 1px solid var(--cc-line);
+    border-radius: 11px;
+    padding: 11px 14px;
+    white-space: nowrap;
+}
+
+.copilot-date > span {
+    font-size: 21px;
+}
+
+.copilot-date small,
+.copilot-date strong {
+    display: block;
+}
+
+.copilot-date small {
+    color: var(--cc-muted);
+    margin-bottom: 3px;
+}
+
+.copilot-briefing-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 13px;
+    margin-bottom: 16px;
+}
+
+.copilot-metric {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+    padding: 16px 13px;
+    border: 1px solid var(--cc-line);
+    border-radius: 13px;
+    background: #fff;
+    color: var(--cc-ink);
+    transition: transform .15s, box-shadow .15s;
+}
+
+.copilot-metric:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px #17355512;
+}
+
+.copilot-metric.red { background: #fff7f7; border-color: #ffd9d9; }
+.copilot-metric.amber { background: #fffbf1; border-color: #ffe6b5; }
+.copilot-metric.blue { background: #f3faff; border-color: #d2eaff; }
+.copilot-metric.purple { background: #f8f4ff; border-color: #e5d9ff; }
+
+.metric-icon {
+    width: 43px;
+    height: 43px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: #fff;
+    font-size: 21px;
+    flex-shrink: 0;
+}
+
+.metric-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 6px;
+}
+
+.metric-title {
+    font-size: 12px;
+    font-weight: 750;
+}
+
+.metric-content > strong {
+    font-size: 27px;
+    line-height: 1;
+}
+
+.red .metric-content > strong { color: #d52d36; }
+.amber .metric-content > strong { color: #a85b00; }
+.blue .metric-content > strong { color: #0875d1; }
+.purple .metric-content > strong { color: #6543dc; }
+
+.metric-description {
+    color: #526783;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.metric-arrow {
+    margin-left: auto;
+    font-size: 22px;
+}
+
+.copilot-dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(240px, .95fr) minmax(380px, 1.55fr) minmax(260px, .95fr);
+    gap: 13px;
+    align-items: start;
+}
+
+.copilot-card {
+    min-width: 0;
+    background: #fff;
+    border: 1px solid var(--cc-line);
+    border-radius: 13px;
+    overflow: hidden;
+    margin-bottom: 13px;
+}
+
+.copilot-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 16px 15px 8px;
+}
+
+.copilot-card-header h2 {
+    font-size: 14px;
+    margin: 0;
+    font-weight: 800;
+}
+
+.copilot-card-description {
+    color: var(--cc-muted);
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 0 15px 12px;
+    margin: 0;
+}
+
+.copilot-text-button {
+    border: 0;
+    background: transparent;
+    color: #0875d1;
+    font-size: 11px;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.priority-patient-list {
+    padding: 0 15px 12px;
+    font-size: 12px;
+    color: var(--cc-muted);
+    line-height: 1.6;
+}
+
+.copilot-loading {
+    padding: 12px 0;
+}
+
+.copilot-chat-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 570px;
+}
+
+.copilot-suggested-questions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    padding: 0 13px 13px;
+}
+
+.copilot-suggested-questions button {
+    border: 1px solid #e3eaf3;
+    border-radius: 9px;
+    padding: 10px;
+    background: #fbfdff;
+    color: #243d60;
+    text-align: left;
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+.copilot-suggested-questions button:hover {
+    border-color: #83d7d0;
+    background: #f0fbfa;
+}
+
+.copilot-messages {
+    flex: 1;
+    min-height: 150px;
+    max-height: 430px;
+    overflow-y: auto;
+    padding: 4px 13px 12px;
+}
+
+.copilot-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+}
+
+.copilot-message-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: #eeeaff;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+}
+
+.copilot-message-content {
+    min-width: 0;
+    flex: 1;
+    padding: 11px;
+    border: 1px solid #e3eaf3;
+    border-radius: 10px;
+    color: #435a79;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.copilot-message-content strong {
+    display: block;
+    color: var(--cc-ink);
+    margin-bottom: 5px;
+}
+
+.copilot-message-content p {
+    margin: 0;
+}
+
+.copilot-user-message {
+    width: fit-content;
+    max-width: 90%;
+    margin: 8px 0 8px auto;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #eaf4ff;
+    border: 1px solid #d4e8ff;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.copilot-input-form {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid #edf1f6;
+}
+
+.copilot-input-form input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid #dbe5f0;
+    border-radius: 9px;
+    padding: 11px;
+    outline: none;
+}
+
+.copilot-input-form input:focus {
+    border-color: #59bfb6;
+}
+
+.copilot-input-form button {
+    border: 0;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #3169f0, #743df0);
+    color: #fff;
+    padding: 0 16px;
+    font-weight: 750;
+}
+
+.copilot-right-column {
+    min-width: 0;
+}
+
+.copilot-consent-content {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 14px 12px;
+}
+
+.copilot-donut {
+    width: 105px;
+    height: 105px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: conic-gradient(#31bd7a 0 75%, #ffc65b 75% 85%, #ff7777 85% 93%, #b8c4d3 93%);
+    position: relative;
+}
+
+.copilot-donut::before {
+    content: "";
+    position: absolute;
+    inset: 15px;
+    background: #fff;
+    border-radius: 50%;
+}
+
+.copilot-donut > div {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    font-size: 10px;
+}
+
+.copilot-donut strong,
+.copilot-donut span {
+    display: block;
+}
+
+.copilot-donut strong {
+    font-size: 23px;
+}
+
+.copilot-consent-legend {
+    display: grid;
+    gap: 9px;
+    flex: 1;
+    min-width: 0;
+}
+
+.copilot-consent-legend > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: #506482;
+}
+
+.copilot-consent-legend strong {
+    margin-left: auto;
+    color: var(--cc-ink);
+}
+
+.legend-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.active-dot { background: #31bd7a; }
+.expiring-dot { background: #ffc65b; }
+.expired-dot { background: #ff7777; }
+.revoked-dot { background: #b8c4d3; }
+
+.copilot-consent-note {
+    margin: 0 14px 14px;
+    padding: 10px;
+    background: #edf7ff;
+    border: 1px solid #d3eaff;
+    border-radius: 9px;
+    color: #345777;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.copilot-trend-counts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    padding: 0 14px 13px;
+}
+
+.trend-count {
+    padding: 10px 8px;
+    border: 1px solid var(--cc-line);
+    border-radius: 9px;
+}
+
+.trend-count strong,
+.trend-count span {
+    display: block;
+}
+
+.trend-count strong {
+    font-size: 21px;
+    margin-bottom: 4px;
+}
+
+.trend-count span {
+    font-size: 10px;
+}
+
+.trend-count.worsening {
+    background: #fff4f4;
+    border-color: #ffcaca;
+    color: #d52d36;
+}
+
+.trend-count.improving {
+    background: #effbf4;
+    border-color: #bfead0;
+    color: #13834f;
+}
+
+.trend-count.stable {
+    background: #f5f8fc;
+    border-color: #dbe4ef;
+    color: #526783;
+}
+
+.copilot-trend-chart {
+    margin: 0 14px 14px;
+    min-height: 65px;
+    padding: 12px;
+    border: 1px dashed #dce6f0;
+    border-radius: 9px;
+    color: var(--cc-muted);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.copilot-safety-results {
+    padding: 0 15px 15px;
+    color: #526783;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.copilot-disclaimer {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-top: 3px;
+    padding: 13px;
+    background: #fff9eb;
+    border: 1px solid #ffe0a3;
+    border-radius: 10px;
+    color: #5d4b2d;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.copilot-disclaimer p {
+    margin: 0;
+}
+
+@media (max-width: 1250px) {
+    .copilot-dashboard-grid {
+        grid-template-columns: minmax(220px, .9fr) minmax(350px, 1.4fr);
+    }
+
+    .copilot-right-column {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 13px;
+    }
+}
+
+@media (max-width: 900px) {
+    .copilot-briefing-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .copilot-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .copilot-right-column {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 600px) {
+    .copilot-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .copilot-heading {
+        align-items: flex-start;
+    }
+
+    .copilot-header h1 {
+        font-size: 22px;
+    }
+
+    .copilot-badge {
+        margin-top: 6px;
+    }
+
+    .copilot-date {
+        align-self: stretch;
+    }
+
+    .copilot-briefing-grid {
+        gap: 8px;
+    }
+
+    .copilot-metric {
+        gap: 8px;
+        padding: 11px 9px;
+    }
+
+    .metric-icon {
+        width: 33px;
+        height: 33px;
+        font-size: 17px;
+    }
+
+    .metric-content > strong {
+        font-size: 23px;
+    }
+
+    .metric-title,
+    .metric-description {
+        font-size: 10px;
+    }
+
+    .metric-arrow {
+        display: none;
+    }
+
+    .copilot-suggested-questions {
+        grid-template-columns: 1fr;
+    }
+
+    .copilot-right-column {
+        display: block;
+    }
+
+    .copilot-consent-content {
+        flex-wrap: wrap;
+    }
+
+    .copilot-input-form {
+        padding: 9px;
+    }
+
+    .copilot-input-form input {
+        width: 100%;
+    }
+
+    .copilot-input-form button {
+        padding: 0 11px;
+    }
+}
+</style>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+/*
+ * Clinical Copilot Frontend Integration
+ * Connects to live consent-authorized backend endpoints.
+ */
+
+const COPILOT_API = {
+    briefing: "/doctor/clinical-copilot/api/briefing",
+    query: "/doctor/clinical-copilot/api/query",
+    review: "/doctor/clinical-copilot/api/alert-review",
+    trends: "/doctor/clinical-copilot/api/trends"
+};
+
+const copilotEl = id => document.getElementById(id);
+
+let currentBriefingData = null;
+let currentFilter = null;
+let showAllPriority = false;
+
+function updateTodayLabel(extraText) {
+    const dStr = new Date().toLocaleDateString(
+        undefined,
+        { weekday: "short", day: "2-digit", month: "short", year: "numeric" }
+    );
+    copilotEl("todayLabel").textContent = extraText ? `${dStr} · ${extraText}` : dStr;
+}
+
+updateTodayLabel();
+
+function copilotCount(id, value) {
+    const el = copilotEl(id);
+    if (el) {
+        el.textContent = value === null || value === undefined ? "—" : String(value);
+    }
+}
+
+function copilotText(value, fallback = "Not available") {
+    return value === null || value === undefined || value === ""
+        ? fallback
+        : String(value);
+}
+
+function renderCopilotPriority(data, filter = null, showAll = false) {
+    const root = copilotEl("priorityList");
+    if (!root) return;
+    root.replaceChildren();
+
+    if (!data) {
+        root.textContent = "Loading authorized clinical data…";
+        return;
+    }
+
+    const entries = [];
+
+    if (!filter || filter === "abnormal_reports") {
+        (data.abnormal_reports || []).forEach(item => {
+            entries.push({
+                ...item,
+                alert_id: `abn-${item.patient_id}-${item.test_name}-${item.date}`,
+                alert_type: "abnormal_report",
+                category: "abnormal",
+                reason: `Abnormal ${copilotText(item.test_name, "lab result")}: ${copilotText(item.value)} ${item.unit || ""} · ${copilotText(item.date)}`,
+                severity: ["critical", "high"].includes(
+                    String(item.status || "").toLowerCase()
+                ) ? "high" : "medium"
+            });
+        });
+    }
+
+    if (!filter || filter === "overdue_followups") {
+        (data.overdue_followups || []).forEach(item => {
+            entries.push({
+                ...item,
+                alert_id: `fup-${item.patient_id}-${item.due_date}`,
+                alert_type: "overdue_followup",
+                category: "followup",
+                reason: `Follow-up overdue by ${copilotText(item.days_overdue, "unknown")} days · due ${copilotText(item.due_date)}`,
+                severity: "medium"
+            });
+        });
+    }
+
+    if (!filter || filter === "access_expiring_today") {
+        (data.access_expiring_today || []).forEach(item => {
+            entries.push({
+                ...item,
+                alert_id: `exp-${item.patient_id}-${item.expires_at}`,
+                alert_type: "access_expiring",
+                category: "access",
+                reason: `Consent access expires today · ${copilotText(item.expires_at)}`,
+                severity: "medium"
+            });
+        });
+    }
+
+    if (!filter || filter === "worsening_trends") {
+        (data.worsening_trends || []).forEach(item => {
+            entries.push({
+                ...item,
+                alert_id: `trd-${item.patient_id}-${item.param_name}-${item.date}`,
+                alert_type: "worsening_trend",
+                category: "trend",
+                reason: `Worsening trend in ${copilotText(item.param_name)}: ${copilotText(item.latest_value)} ${item.unit || ""} (${copilotText(item.change_text, "Elevated")})`,
+                severity: "high"
+            });
+        });
+    }
+
+    const seen = new Set();
+    const uniqueEntries = entries.filter(item => {
+        const key = `${item.patient_id || ""}|${item.reason}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+
+    const displayEntries = showAll ? uniqueEntries : uniqueEntries.slice(0, 8);
+
+    if (!displayEntries.length) {
+        const emptyMsg = document.createElement("p");
+        emptyMsg.style.cssText = "color:#627694;font-size:12px;padding:12px 0;margin:0;";
+        emptyMsg.textContent = filter
+            ? `No records match the selected filter (${filter.replace(/_/g, " ")}).`
+            : "No priority alerts found among currently authorized patients.";
+        root.append(emptyMsg);
+        return;
+    }
+
+    displayEntries.forEach((item, index) => {
+        const row = document.createElement("article");
+        row.className = "copilot-priority-item";
+        row.style.cssText =
+            "display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;padding:12px 0;border-bottom:1px solid #edf1f5;align-items:start;";
+
+        const rank = document.createElement("span");
+        rank.textContent = index + 1;
+        rank.style.cssText =
+            "width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:#fff0d2;color:#9a5700;font-weight:800;font-size:12px;flex-shrink:0;";
+
+        const details = document.createElement("div");
+
+        const topRow = document.createElement("div");
+        topRow.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;";
+
+        const name = document.createElement("strong");
+        name.textContent = copilotText(item.patient_name, "Authorized patient");
+        name.style.cssText = "color:#142b4c;font-size:12px;";
+
+        const tag = document.createElement("span");
+        tag.textContent = item.severity === "high" ? "High priority" : "Review";
+        tag.style.cssText = "font-size:10px;font-weight:750;padding:2px 7px;border-radius:12px;background:" +
+            (item.severity === "high" ? "#fff0f0;color:#d52d36;border:1px solid #ffd2d2" : "#fff8e8;color:#a85b00;border:1px solid #ffe6b5");
+
+        topRow.append(name, tag);
+
+        const reason = document.createElement("p");
+        reason.textContent = item.reason;
+        reason.style.cssText = "font-size:11px;line-height:1.5;color:#526783;margin:0;";
+
+        details.append(topRow, reason);
+
+        const actions = document.createElement("div");
+        actions.style.cssText = "display:flex;align-items:center;gap:8px;";
+
+        const reviewBtn = document.createElement("button");
+        reviewBtn.type = "button";
+        reviewBtn.textContent = "Review";
+        reviewBtn.style.cssText = "background:#f4f8f8;border:1px solid #cce5e3;color:#087f79;font-size:10px;font-weight:700;border-radius:6px;padding:4px 8px;cursor:pointer;";
+        reviewBtn.addEventListener("click", async () => {
+            reviewBtn.disabled = true;
+            reviewBtn.textContent = "…";
+            try {
+                const res = await fetch(COPILOT_API.review, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        alert_id: item.alert_id,
+                        alert_type: item.alert_type,
+                        patient_id: item.patient_id,
+                        notes: `Clinician acknowledged: ${item.reason}`
+                    })
+                });
+                if (res.ok) {
+                    reviewBtn.textContent = "✓ Done";
+                    reviewBtn.style.background = "#eafbf4";
+                    reviewBtn.style.color = "#13834f";
+                    reviewBtn.style.borderColor = "#a4e6c4";
+                } else {
+                    reviewBtn.textContent = "Retry";
+                    reviewBtn.disabled = false;
+                }
+            } catch (e) {
+                reviewBtn.textContent = "Retry";
+                reviewBtn.disabled = false;
+            }
+        });
+        actions.append(reviewBtn);
+
+        if (item.workspace_url) {
+            const link = document.createElement("a");
+            link.href = item.workspace_url;
+            link.textContent = "›";
+            link.title = "Open patient workspace";
+            link.setAttribute("aria-label", "Open authorized patient workspace");
+            link.style.cssText = "font-size:22px;color:#0875d1;text-decoration:none;padding:0 4px;";
+            actions.append(link);
+        }
+
+        row.append(rank, details, actions);
+        root.append(row);
+    });
+
+    const viewPriorityBtn = copilotEl("viewPriority");
+    if (viewPriorityBtn) {
+        viewPriorityBtn.textContent = showAll
+            ? "View Less ↑"
+            : (uniqueEntries.length > 8 ? `View All (${uniqueEntries.length}) →` : "View All →");
+    }
+}
+
+function renderCopilotTrends(data) {
+    const root = copilotEl("copilotTrendChart");
+    if (!root) return;
+    root.replaceChildren();
+
+    const worsening = data.worsening_trends || [];
+    const summary = data.trend_summary || {};
+
+    if (!worsening.length && !summary.improving && !summary.stable) {
+        root.textContent = "No calculated parameter observations available yet.";
+        return;
+    }
+
+    const container = document.createElement("div");
+    container.style.cssText = "display:flex;flex-direction:column;gap:8px;";
+
+    if (worsening.length) {
+        const title = document.createElement("strong");
+        title.style.cssText = "color:#d52d36;font-size:11px;display:block;";
+        title.textContent = `⚠️ Flagged Worsening Metrics (${worsening.length}):`;
+        container.append(title);
+
+        worsening.slice(0, 4).forEach(item => {
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;justify-content:space-between;align-items:center;background:#fff8f8;border:1px solid #ffe3e3;border-radius:6px;padding:6px 8px;font-size:11px;";
+
+            const left = document.createElement("div");
+            const pName = document.createElement("span");
+            pName.style.cssText = "font-weight:700;color:#142b4c;";
+            pName.textContent = item.patient_name + ": ";
+
+            const metric = document.createElement("span");
+            metric.textContent = `${item.param_name} (${item.latest_value} ${item.unit || ""})`;
+            left.append(pName, metric);
+
+            const badge = document.createElement("span");
+            badge.style.cssText = "color:#d52d36;font-weight:700;font-size:10px;";
+            badge.textContent = item.change_text || "Elevated";
+
+            row.append(left, badge);
+            container.append(row);
+        });
+    } else {
+        const stableMsg = document.createElement("p");
+        stableMsg.style.cssText = "color:#13834f;font-size:11px;margin:0;";
+        stableMsg.textContent = "✓ No parameters show clinically concerning worsening trends across authorized patients.";
+        container.append(stableMsg);
+    }
+
+    root.append(container);
+}
+
+function renderCopilotSafety(data) {
+    const root = copilotEl("copilotSafetyResults");
+    if (!root) return;
+    root.replaceChildren();
+
+    const safety = data.medication_safety || {};
+    const conflicts = safety.conflicts || [];
+
+    if (!conflicts.length) {
+        const okBox = document.createElement("div");
+        okBox.style.cssText = "background:#f3fbf6;border:1px solid #d1f2e0;border-radius:8px;padding:10px;color:#13834f;font-size:11px;";
+        okBox.textContent = "✓ No active medication discrepancies or documented allergy conflicts detected across authorized records.";
+        root.append(okBox);
+        return;
+    }
+
+    const list = document.createElement("div");
+    list.style.cssText = "display:flex;flex-direction:column;gap:7px;";
+
+    conflicts.slice(0, 4).forEach(c => {
+        const card = document.createElement("div");
+        card.style.cssText = "background:#fffbf2;border:1px solid #ffe8be;border-radius:7px;padding:8px 10px;";
+
+        const head = document.createElement("div");
+        head.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;";
+
+        const title = document.createElement("strong");
+        title.style.cssText = "font-size:11px;color:#9a5700;";
+        title.textContent = `${c.patient_name} · ${c.title}`;
+
+        const badge = document.createElement("span");
+        badge.style.cssText = "font-size:9px;font-weight:800;background:#ffe2ad;color:#7e4300;padding:1px 5px;border-radius:8px;";
+        badge.textContent = "Review";
+
+        head.append(title, badge);
+
+        const desc = document.createElement("p");
+        desc.style.cssText = "margin:0;font-size:11px;color:#614d2e;line-height:1.4;";
+        desc.textContent = c.description;
+
+        card.append(head, desc);
+        list.append(card);
+    });
+
+    root.append(list);
+}
+
+function renderCopilotBriefing(data) {
+    currentBriefingData = data;
+
+    copilotCount("abnormalCount", (data.abnormal_reports || []).length);
+    copilotCount("followupCount", (data.overdue_followups || []).length);
+    copilotCount("expiringCount", (data.access_expiring_today || []).length);
+    copilotCount("worseningCount", (data.worsening_trends || []).length);
+
+    const scope = data.scope || {};
+
+    copilotCount("scopeCount", scope.authorized_patient_count);
+    copilotCount("activeConsent", scope.authorized_patient_count);
+    copilotCount("consentExpiring", (data.access_expiring_today || []).length);
+    copilotCount("consentExpired", scope.expired_count);
+    copilotCount("consentRevoked", scope.revoked_count);
+
+    const noteEl = copilotEl("scopeNote");
+    if (noteEl) {
+        noteEl.textContent = scope.note ||
+            "Only patients with active, unexpired consent should be included in clinical analysis.";
+    }
+
+    copilotCount("trendWorsening", (data.worsening_trends || []).length);
+    copilotCount("trendImproving", data.trend_summary?.improving);
+    copilotCount("trendStable", data.trend_summary?.stable);
+
+    // Dynamic Donut Chart based on real consent distribution
+    const active = scope.authorized_patient_count || 0;
+    const expiring = (data.access_expiring_today || []).length;
+    const expired = scope.expired_count || 0;
+    const revoked = scope.revoked_count || 0;
+    const totalConsent = active + expired + revoked;
+
+    const donut = document.querySelector(".copilot-donut");
+    if (donut) {
+        if (totalConsent > 0) {
+            const pActive = Math.max(1, Math.round((active / totalConsent) * 100));
+            const pExpiring = Math.round((expiring / totalConsent) * 100);
+            const pExpired = Math.round((expired / totalConsent) * 100);
+            const stop1 = pActive;
+            const stop2 = stop1 + pExpiring;
+            const stop3 = stop2 + pExpired;
+            donut.style.background = `conic-gradient(#31bd7a 0% ${stop1}%, #ffc65b ${stop1}% ${stop2}%, #ff7777 ${stop2}% ${stop3}%, #b8c4d3 ${stop3}% 100%)`;
+        } else {
+            donut.style.background = "#e2e8f0";
+        }
+    }
+
+    renderCopilotPriority(data, currentFilter, showAllPriority);
+    renderCopilotTrends(data);
+    renderCopilotSafety(data);
+}
+
+async function loadCopilotBriefing() {
+    const refreshIcon = copilotEl("refreshIcon");
+    if (refreshIcon) refreshIcon.style.transform = "rotate(180deg)";
+
+    try {
+        const response = await fetch(COPILOT_API.briefing, {
+            method: "GET",
+            credentials: "same-origin",
+            headers: { "Accept": "application/json" }
+        });
+
+        if (!response.ok) {
+            copilotEl("priorityList").textContent =
+                response.status === 401
+                    ? "Please sign in to view authorized patient data."
+                    : "Unable to retrieve clinical briefing. Check server logs.";
+            return;
+        }
+
+        const data = await response.json();
+        renderCopilotBriefing(data);
+        updateTodayLabel(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+
+    } catch (error) {
+        copilotEl("priorityList").textContent =
+            "Unable to reach the briefing API. Check network connectivity and server logs.";
+    } finally {
+        if (refreshIcon) refreshIcon.style.transform = "none";
+    }
+}
+
+function appendCopilotMessage(message, type = "assistant") {
+    const root = copilotEl("copilotMessages");
+    const wrapper = document.createElement("div");
+
+    if (type === "user") {
+        wrapper.className = "copilot-user-message";
+        wrapper.textContent = message;
+    } else {
+        wrapper.className = "copilot-message";
+
+        const icon = document.createElement("div");
+        icon.className = "copilot-message-icon";
+        icon.textContent = "🤖";
+
+        const content = document.createElement("div");
+        content.className = "copilot-message-content";
+
+        const heading = document.createElement("strong");
+        heading.textContent = "Clinical Copilot";
+
+        const body = document.createElement("p");
+        body.textContent = message;
+
+        content.append(heading, body);
+        wrapper.append(icon, content);
+    }
+
+    root.append(wrapper);
+    root.scrollTop = root.scrollHeight;
+    return wrapper;
+}
+
+async function submitCopilotQuestion(question) {
+    const cleaned = String(question || "").trim();
+    if (!cleaned) return;
+
+    copilotEl("copilotQuestionInput").value = "";
+    appendCopilotMessage(cleaned, "user");
+
+    const pending = appendCopilotMessage("Consulting authorized records…");
+
+    try {
+        const response = await fetch(COPILOT_API.query, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({ question: cleaned })
+        });
+
+        const data = await response.json().catch(() => ({}));
+        const body = pending.querySelector("p");
+
+        if (!response.ok) {
+            body.textContent = data.error || (
+                response.status === 401
+                    ? "Please sign in to access patient records."
+                    : "The query could not be completed. No clinical answer was generated."
+            );
+            return;
+        }
+
+        body.textContent = data.answer ||
+            "The query completed, but no clinical findings were returned.";
+
+        if (Array.isArray(data.results) && data.results.length) {
+            const list = document.createElement("ul");
+            list.style.cssText = "padding-left:18px;margin-top:10px;";
+
+            data.results.forEach(result => {
+                const li = document.createElement("li");
+                li.style.marginTop = "6px";
+                li.style.fontSize = "11px";
+
+                const summary = [
+                    result.patient_name,
+                    result.test_name || result.parameter,
+                    result.value,
+                    result.unit,
+                    result.date,
+                    result.source
+                ].filter(value => value !== null && value !== undefined && value !== "");
+
+                li.textContent = summary.join(" · ");
+
+                if (result.source_url) {
+                    const link = document.createElement("a");
+                    link.href = result.source_url;
+                    link.textContent = " View in workspace ›";
+                    link.style.cssText = "color:#0875d1;text-decoration:none;font-weight:700;margin-left:6px;";
+                    li.append(link);
+                }
+
+                list.append(li);
+            });
+
+            pending.querySelector(".copilot-message-content").append(list);
+        }
+
+        if (Array.isArray(data.limitations) && data.limitations.length) {
+            const lim = document.createElement("p");
+            lim.style.cssText = "color:#856404;font-size:10px;margin-top:8px;font-style:italic;";
+            lim.textContent = "Note: " + data.limitations.join(" ");
+            pending.querySelector(".copilot-message-content").append(lim);
+        }
+
+    } catch (error) {
+        pending.querySelector("p").textContent =
+            "Could not reach the query API. Please check your connection and server status.";
+    }
+}
+
+// Event Listeners
+copilotEl("copilotQuestionForm").addEventListener("submit", event => {
+    event.preventDefault();
+    submitCopilotQuestion(copilotEl("copilotQuestionInput").value);
+});
+
+document.querySelectorAll(".copilot-suggested-questions [data-question]")
+    .forEach(button => {
+        button.addEventListener("click", () => {
+            submitCopilotQuestion(button.dataset.question);
+        });
+    });
+
+// Metric card filters
+document.querySelectorAll(".copilot-metric[data-filter]").forEach(button => {
+    button.addEventListener("click", () => {
+        const filterName = button.dataset.filter;
+        if (currentFilter === filterName) {
+            currentFilter = null;
+            button.style.outline = "none";
+        } else {
+            document.querySelectorAll(".copilot-metric[data-filter]").forEach(b => b.style.outline = "none");
+            currentFilter = filterName;
+            button.style.outline = "2px solid var(--cc-teal)";
+        }
+        if (currentBriefingData) {
+            renderCopilotPriority(currentBriefingData, currentFilter, showAllPriority);
+        }
+        copilotEl("priorityList").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+});
+
+// View All Priority toggle
+copilotEl("viewPriority").addEventListener("click", () => {
+    showAllPriority = !showAllPriority;
+    if (currentBriefingData) {
+        renderCopilotPriority(currentBriefingData, currentFilter, showAllPriority);
+    }
+});
+
+// View Consent logs
+copilotEl("viewConsent").addEventListener("click", () => {
+    window.location.href = "/doctor/access-audit";
+});
+
+// View Trends details
+copilotEl("viewTrends").addEventListener("click", () => {
+    submitCopilotQuestion("Summarize clinical trends and changes across authorized patients");
+});
+
+// Refresh button
+const refreshBtn = copilotEl("refreshBriefingBtn");
+if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+        loadCopilotBriefing();
+    });
+}
+
+// Initial load
+loadCopilotBriefing();
+</script>
+{% endblock %}
