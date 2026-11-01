@@ -1,7 +1,7 @@
 import utils.network_config  # Prioritize IPv4 on Windows
 from services.doctor_ai_assistant import ask_doctor_ai
 from services.medical_document_processor import process_medical_document
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -26,6 +26,21 @@ from services.clinical_audit_service import (
     mark_notification_as_read,
     mark_all_notifications_as_read,
     ACTION_LABELS,
+)
+from services.doctor_profile_service import (
+    get_doctor_profile,
+    update_doctor_profile,
+    upload_doctor_photo,
+    delete_doctor_photo,
+    get_working_preferences,
+    update_working_preferences,
+    list_doctor_documents,
+    upload_doctor_document,
+    get_document_for_doctor,
+    delete_doctor_document,
+    change_doctor_password,
+    get_active_sessions_info,
+    get_two_factor_status,
 )
 import os
 import httpx
@@ -3197,31 +3212,340 @@ def doctor_access_search_patient():
 
 
 
+# ============================================================
+# DOCTOR PROFILE ROUTES & APIS
+# ============================================================
+
 @app.route("/doctor/profile")
 def doctor_profile():
     if "doctor_id" not in session:
         return redirect(url_for("doctor_login"))
 
     doctor_id = session.get("doctor_id")
+    profile = get_doctor_profile(doctor_id, supabase_admin, session)
+    documents = list_doctor_documents(doctor_id, supabase_admin)
+    preferences = get_working_preferences(doctor_id, supabase_admin)
+    active_sessions = get_active_sessions_info(
+        doctor_id,
+        remote_addr=request.remote_addr,
+        user_agent_str=request.headers.get("User-Agent")
+    )
+    two_factor = get_two_factor_status(doctor_id)
+
+    return render_template(
+        "doctor/doctor_profile.html",
+        doctor=profile,
+        documents=documents,
+        preferences=preferences,
+        active_sessions=active_sessions,
+        two_factor=two_factor
+    )
+
+
+@app.route("/doctor/profile/api/details", methods=["GET"])
+def doctor_profile_api_details():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    profile = get_doctor_profile(doctor_id, supabase_admin, session)
+    if isinstance(profile, dict):
+        profile = dict(profile)
+        profile.pop("password", None)
+
+    documents = list_doctor_documents(doctor_id, supabase_admin)
+    preferences = get_working_preferences(doctor_id, supabase_admin)
+    active_sessions = get_active_sessions_info(
+        doctor_id,
+        remote_addr=request.remote_addr,
+        user_agent_str=request.headers.get("User-Agent")
+    )
+    two_factor = get_two_factor_status(doctor_id)
+
+    return jsonify({
+        "success": True,
+        "profile": profile,
+        "documents": documents,
+        "preferences": preferences,
+        "active_sessions": active_sessions,
+        "two_factor": two_factor
+    }), 200
+
+
+@app.route("/doctor/profile/api/update", methods=["POST"])
+def doctor_profile_api_update():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    data = request.get_json(silent=True) or request.form.to_dict()
+
+    success, message, updated_profile = update_doctor_profile(doctor_id, data, supabase_admin)
+    if not success:
+        return jsonify({"success": False, "error": message}), 400
+
+    if "full_name" in data and data["full_name"]:
+        session["doctor_name"] = data["full_name"]
 
     try:
-        doctor_response = (
-            supabase_admin
-            .table("doctors")
-            .select("*")
-            .eq("id", doctor_id)
-            .single()
-            .execute()
+        log_audit_event(
+            doctor_id=doctor_id,
+            action="DOCTOR_PROFILE_UPDATED",
+            status="SUCCESS",
+            metadata={"updated_fields": list(data.keys())},
+            client_ip=request.remote_addr
         )
-        doctor = doctor_response.data
-    except Exception:
-        doctor = {
-            "full_name": session.get("doctor_name", "Doctor"),
-            "specialization": "Medical Specialist",
-            "medical_registration_number": "Registered"
-        }
+    except Exception as e:
+        print("[DoctorProfile] Audit log notice:", e)
 
-    return render_template("doctor/doctor_profile.html", doctor=doctor)
+    if isinstance(updated_profile, dict):
+        updated_profile = dict(updated_profile)
+        updated_profile.pop("password", None)
+
+    return jsonify({"success": True, "message": message, "profile": updated_profile}), 200
+
+
+@app.route("/doctor/profile/api/photo", methods=["POST"])
+def doctor_profile_api_photo():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    if "photo" not in request.files:
+        return jsonify({"success": False, "error": "No photograph file provided."}), 400
+
+    file = request.files["photo"]
+    if not file or not file.filename:
+        return jsonify({"success": False, "error": "No file selected."}), 400
+
+    file_bytes = file.read()
+    filename = secure_filename(file.filename) or "photo.jpg"
+    content_type = file.content_type or "image/jpeg"
+
+    success, message, photo_url = upload_doctor_photo(
+        doctor_id, file_bytes, filename, content_type, supabase_admin
+    )
+    if not success:
+        return jsonify({"success": False, "error": message}), 400
+
+    try:
+        log_audit_event(
+            doctor_id=doctor_id,
+            action="DOCTOR_PROFILE_PHOTO_UPDATED",
+            status="SUCCESS",
+            metadata={"filename": filename},
+            client_ip=request.remote_addr
+        )
+    except Exception as e:
+        print("[DoctorProfile] Photo audit log notice:", e)
+
+    return jsonify({"success": True, "message": message, "photo_url": photo_url}), 200
+
+
+@app.route("/doctor/profile/api/photo", methods=["DELETE"])
+def doctor_profile_api_delete_photo():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    success, message = delete_doctor_photo(doctor_id, supabase_admin)
+    if not success:
+        return jsonify({"success": False, "error": message}), 400
+
+    try:
+        log_audit_event(
+            doctor_id=doctor_id,
+            action="DOCTOR_PROFILE_PHOTO_REMOVED",
+            status="SUCCESS",
+            client_ip=request.remote_addr
+        )
+    except Exception as e:
+        print("[DoctorProfile] Photo remove audit log notice:", e)
+
+    return jsonify({"success": True, "message": message, "default_avatar": True}), 200
+
+
+@app.route("/doctor/profile/api/preferences", methods=["GET", "POST"])
+def doctor_profile_api_preferences():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    if request.method == "POST":
+        data = request.get_json(silent=True) or request.form.to_dict()
+        success, message, clean_prefs = update_working_preferences(doctor_id, data, supabase_admin)
+        if not success:
+            return jsonify({"success": False, "error": message}), 400
+
+        try:
+            log_audit_event(
+                doctor_id=doctor_id,
+                action="WORKING_PREFERENCES_UPDATED",
+                status="SUCCESS",
+                client_ip=request.remote_addr
+            )
+        except Exception as e:
+            print("[DoctorProfile] Prefs audit log notice:", e)
+
+        return jsonify({"success": True, "message": message, "preferences": clean_prefs}), 200
+
+    prefs = get_working_preferences(doctor_id, supabase_admin)
+    return jsonify({"success": True, "preferences": prefs}), 200
+
+
+@app.route("/doctor/profile/api/documents", methods=["GET"])
+def doctor_profile_api_documents():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    documents = list_doctor_documents(doctor_id, supabase_admin)
+    return jsonify({"success": True, "documents": documents}), 200
+
+
+@app.route("/doctor/profile/api/documents/upload", methods=["POST"])
+def doctor_profile_api_documents_upload():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    file = request.files.get("document_file") or request.files.get("file")
+    if not file or not file.filename:
+        return jsonify({"success": False, "error": "Please select a document file to upload."}), 400
+
+    document_name = request.form.get("document_name", "").strip()
+    document_type = request.form.get("document_type", "other").strip()
+
+    file_bytes = file.read()
+    filename = secure_filename(file.filename) or "credential.pdf"
+    content_type = file.content_type or "application/pdf"
+
+    success, message, doc_record = upload_doctor_document(
+        doctor_id, file_bytes, filename, content_type, document_name, document_type, supabase_admin
+    )
+    if not success:
+        return jsonify({"success": False, "error": message}), 400
+
+    try:
+        log_audit_event(
+            doctor_id=doctor_id,
+            action="CREDENTIAL_DOCUMENT_UPLOADED",
+            status="SUCCESS",
+            metadata={"document_name": doc_record.get("document_name"), "document_type": document_type},
+            client_ip=request.remote_addr
+        )
+    except Exception as e:
+        print("[DoctorProfile] Document upload audit notice:", e)
+
+    return jsonify({"success": True, "message": message, "document": doc_record}), 201
+
+
+@app.route("/doctor/profile/api/documents/<document_id>/view")
+def doctor_profile_api_document_view(document_id):
+    if "doctor_id" not in session:
+        return redirect(url_for("doctor_login"))
+
+    doctor_id = session.get("doctor_id")
+    doc = get_document_for_doctor(doctor_id, document_id, supabase_admin)
+    if not doc:
+        flash("Document not found or access denied.", "error")
+        return redirect(url_for("doctor_profile"))
+
+    file_path = doc.get("file_path", "")
+    filename = os.path.basename(file_path)
+    local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "doctors", str(doctor_id), "documents", filename)
+
+    if os.path.exists(local_path):
+        return send_file(local_path, mimetype=doc.get("mime_type", "application/pdf"))
+
+    file_url = doc.get("file_url")
+    if file_url:
+        return redirect(file_url)
+
+    flash("Unable to locate document file.", "error")
+    return redirect(url_for("doctor_profile"))
+
+
+@app.route("/doctor/profile/api/documents/<document_id>/download")
+def doctor_profile_api_document_download(document_id):
+    if "doctor_id" not in session:
+        return redirect(url_for("doctor_login"))
+
+    doctor_id = session.get("doctor_id")
+    doc = get_document_for_doctor(doctor_id, document_id, supabase_admin)
+    if not doc:
+        flash("Document not found or access denied.", "error")
+        return redirect(url_for("doctor_profile"))
+
+    file_path = doc.get("file_path", "")
+    filename = os.path.basename(file_path)
+    download_name = doc.get("file_name") or filename
+    local_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "doctors", str(doctor_id), "documents", filename)
+
+    if os.path.exists(local_path):
+        return send_file(local_path, as_attachment=True, download_name=download_name)
+
+    file_url = doc.get("file_url")
+    if file_url:
+        return redirect(file_url)
+
+    flash("Unable to download document file.", "error")
+    return redirect(url_for("doctor_profile"))
+
+
+@app.route("/doctor/profile/api/documents/<document_id>", methods=["DELETE"])
+def doctor_profile_api_document_delete(document_id):
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    success, message = delete_doctor_document(doctor_id, document_id, supabase_admin)
+    if not success:
+        return jsonify({"success": False, "error": message}), 404
+
+    try:
+        log_audit_event(
+            doctor_id=doctor_id,
+            action="CREDENTIAL_DOCUMENT_DELETED",
+            status="SUCCESS",
+            metadata={"document_id": document_id},
+            client_ip=request.remote_addr
+        )
+    except Exception as e:
+        print("[DoctorProfile] Document delete audit notice:", e)
+
+    return jsonify({"success": True, "message": message}), 200
+
+
+@app.route("/doctor/profile/api/change-password", methods=["POST"])
+def doctor_profile_api_change_password():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    data = request.get_json(silent=True) or request.form.to_dict()
+
+    current_password = data.get("current_password", "").strip()
+    new_password = data.get("new_password", "").strip()
+    confirm_password = data.get("confirm_password", "").strip()
+
+    success, message = change_doctor_password(
+        doctor_id, current_password, new_password, confirm_password, supabase_admin
+    )
+    if not success:
+        return jsonify({"success": False, "error": message}), 400
+
+    try:
+        log_audit_event(
+            doctor_id=doctor_id,
+            action="DOCTOR_PASSWORD_CHANGED",
+            status="SUCCESS",
+            client_ip=request.remote_addr
+        )
+    except Exception as e:
+        print("[DoctorProfile] Password change audit notice:", e)
+
+    return jsonify({"success": True, "message": message}), 200
 
 
 @app.route("/doctor/settings")

@@ -39,7 +39,14 @@ ACTION_LABELS = {
     "COPILOT_BRIEFING_VIEWED": "Clinical Briefing Viewed",
     "GUEST_PATIENT_ACCESS": "Guest Patient Record Access",
     "UNAUTHORIZED_ACCESS_ATTEMPT": "Unauthorized Access Attempt",
-    "FAILED_ACCESS_ATTEMPT": "Failed Access Attempt"
+    "FAILED_ACCESS_ATTEMPT": "Failed Access Attempt",
+    "DOCTOR_PROFILE_UPDATED": "Doctor Profile Updated",
+    "DOCTOR_PROFILE_PHOTO_UPDATED": "Profile Photograph Updated",
+    "DOCTOR_PROFILE_PHOTO_REMOVED": "Profile Photograph Removed",
+    "WORKING_PREFERENCES_UPDATED": "Working Preferences Updated",
+    "CREDENTIAL_DOCUMENT_UPLOADED": "Credential Document Uploaded",
+    "CREDENTIAL_DOCUMENT_DELETED": "Credential Document Deleted",
+    "DOCTOR_PASSWORD_CHANGED": "Doctor Password Changed"
 }
 
 

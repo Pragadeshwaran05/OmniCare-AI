@@ -1,23 +1,993 @@
-<!DOCTYPE html>
-
 {% extends "doctor_base.html" %}
 
-{% block title %}Doctor Profile - OmniCare AI{% endblock %}
+{% block title %}
+My Profile - Doctor Portal | OmniCare AI
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/doctor_profile.css') }}">
+{% endblock %}
 
 {% block content %}
-<div class="doctor-dashboard">
-    <div class="dashboard-header">
-        <div>
-            <span class="dashboard-label">DOCTOR PORTAL</span>
-            <h1>Doctor Profile</h1>
-            <p>Your professional credentials and account details.</p>
+<div class="profile-page-container">
+
+    <!-- =========================================================
+         PAGE HEADER
+         ========================================================= -->
+    <div class="profile-header">
+        <div class="profile-header-left">
+            <span class="doctor-portal-pill">DOCTOR PORTAL</span>
+            <h1>My Profile</h1>
+            <p>View and manage your professional details, hospital information, and account settings.</p>
+        </div>
+
+        <div class="profile-header-right">
+            <div class="verified-practitioner-badge" title="OmniCare Clinical Credential Verified">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <polyline points="9 12 11 14 15 10"></polyline>
+                </svg>
+                <span>Verified Medical Practitioner</span>
+            </div>
         </div>
     </div>
-    <div class="empty-patients">
-        <div class="empty-icon">👨‍⚕️</div>
-        <h3>Dr. {{ doctor.full_name if doctor else session.get('doctor_name', 'Doctor') }}</h3>
-        <p>Specialization: {{ doctor.specialization if doctor else 'Medical Specialist' }}</p>
-        <p>Medical Reg No: {{ doctor.medical_registration_number if doctor else 'Registered' }}</p>
+
+
+    <!-- =========================================================
+         TWO-COLUMN LAYOUT
+         ========================================================= -->
+    <div class="profile-layout">
+
+        <!-- =====================================================
+             LEFT COLUMN: DOCTOR PROFILE CARD & CREDENTIALS
+             ===================================================== -->
+        <div class="profile-left-col">
+
+            <!-- MAIN DOCTOR PROFILE CARD -->
+            <div class="profile-card doctor-profile-card">
+
+                <!-- AVATAR CONTAINER WITH CAMERA ACTION -->
+                <div class="avatar-container" id="avatarContainer">
+                    {% if doctor.profile_photo_url %}
+                    <img src="{{ doctor.profile_photo_url }}"
+                         alt="Dr. {{ doctor.full_name }}"
+                         class="doctor-photo-img"
+                         id="doctorPhotoImg">
+                    {% else %}
+                    <div class="doctor-default-avatar" id="doctorDefaultAvatar">
+                        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="32" cy="32" r="32" fill="#e6f7f6"/>
+                            <!-- Head & Hair -->
+                            <circle cx="32" cy="22" r="11" fill="#087f79"/>
+                            <!-- Physician Coat & Stethoscope -->
+                            <path d="M14 56C14 43 22 37 32 37C42 37 50 43 50 56" fill="#087f79"/>
+                            <!-- Inner Shirt -->
+                            <path d="M27 37L32 46L37 37" fill="#ffffff"/>
+                            <!-- Stethoscope curve -->
+                            <path d="M25 40C25 46 28 50 32 50C36 50 39 46 39 40" stroke="#bce3e0" stroke-width="2.5" stroke-linecap="round"/>
+                            <circle cx="32" cy="52" r="2.5" fill="#065f5b"/>
+                        </svg>
+                    </div>
+                    {% endif %}
+
+                    <!-- Camera trigger button -->
+                    <button type="button"
+                            class="avatar-camera-btn"
+                            id="btnChangePhoto"
+                            title="Upload or change profile photograph"
+                            aria-label="Upload profile photograph">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                    </button>
+
+                    <!-- Hidden file upload input -->
+                    <input type="file"
+                           id="profilePhotoInput"
+                           accept="image/jpeg,image/png,image/webp"
+                           style="display: none;">
+                </div>
+
+                <!-- Remove Photo Link -->
+                <button type="button"
+                        class="avatar-remove-btn"
+                        id="btnRemovePhoto"
+                        style="{% if not doctor.profile_photo_url %}display: none;{% endif %}">
+                    Remove custom photo
+                </button>
+
+                <!-- DOCTOR CORE INFO -->
+                <h2 class="profile-doctor-name" id="dispDoctorName">Dr. {{ doctor.full_name }}</h2>
+                <span class="profile-specialization-badge" id="dispSpecializationBadge">
+                    {{ doctor.specialization }}
+                </span>
+
+                <div class="registration-number-pill">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                        <circle cx="9" cy="10" r="2"></circle>
+                        <line x1="15" y1="8" x2="17" y2="8"></line>
+                        <line x1="15" y1="12" x2="17" y2="12"></line>
+                        <line x1="7" y1="16" x2="17" y2="16"></line>
+                    </svg>
+                    <span>Reg No:</span>
+                    <strong id="dispRegNo">{{ doctor.medical_registration_number }}</strong>
+                </div>
+
+                <!-- CONTACT & HOSPITAL DETAILS -->
+                <div class="profile-details-list">
+                    <div class="profile-detail-item">
+                        <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                        <div class="detail-content">
+                            <span class="detail-label">Email Address</span>
+                            <span class="detail-value" id="dispEmail">{{ doctor.email }}</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-detail-item">
+                        <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                        <div class="detail-content">
+                            <span class="detail-label">Phone Number</span>
+                            <span class="detail-value" id="dispPhone">{{ doctor.phone or 'Not provided' }}</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-detail-item">
+                        <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 21h18"></path>
+                            <path d="M5 21V7l8-4v18"></path>
+                            <path d="M19 21V11l-6-4"></path>
+                            <path d="M9 9h1"></path>
+                            <path d="M9 13h1"></path>
+                            <path d="M9 17h1"></path>
+                        </svg>
+                        <div class="detail-content">
+                            <span class="detail-label">Hospital / Institution</span>
+                            <span class="detail-value" id="dispHospital">{{ doctor.hospital_name }}</span>
+                        </div>
+                    </div>
+
+                    <div class="profile-detail-item">
+                        <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        <div class="detail-content">
+                            <span class="detail-label">Hospital Address</span>
+                            <span class="detail-value" id="dispAddress">{{ doctor.hospital_address }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EDIT PROFILE BUTTON -->
+                <button type="button" class="btn btn-primary" id="btnOpenEditProfileModal">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    Edit Profile
+                </button>
+            </div>
+
+            <!-- PROFILE COMPLETION / VERIFICATION STATUS CARD -->
+            <div class="profile-card completion-card">
+                <div class="completion-header">
+                    <span>Clinical Profile Status</span>
+                    <span style="color: var(--primary-teal);">100% Complete</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width: 100%;"></div>
+                </div>
+                <div class="checklist-items">
+                    <div class="checklist-item done">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Medical Registration Active</span>
+                    </div>
+                    <div class="checklist-item done">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Hospital Affiliation Verified</span>
+                    </div>
+                    <div class="checklist-item done">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        <span>Clinical Copilot Access Enabled</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             RIGHT COLUMN: PROFESSIONAL DETAILS, SCHEDULE & DOCS
+             ===================================================== -->
+        <div class="profile-right-col">
+
+            <!-- 1. PROFESSIONAL INFORMATION CARD -->
+            <div class="profile-card">
+                <div class="card-header-row">
+                    <div class="card-title-group">
+                        <div class="card-icon-pill">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Professional Information</h3>
+                            <p>Qualifications, medical department, and clinical experience</p>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-outline-sm" id="btnOpenProfessionalModal">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        Edit Information
+                    </button>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Full Name</span>
+                        <span class="info-value" id="dispFullNameDetail">Dr. {{ doctor.full_name }}</span>
+                    </div>
+
+                    <div class="info-item">
+                        <span class="info-label">Qualification</span>
+                        <span class="info-value" id="dispQualification">{{ doctor.qualification or 'MBBS, MD' }}</span>
+                    </div>
+
+                    <div class="info-item">
+                        <span class="info-label">Specialization</span>
+                        <span class="info-value" id="dispSpecializationDetail">{{ doctor.specialization }}</span>
+                    </div>
+
+                    <div class="info-item">
+                        <span class="info-label">Department</span>
+                        <span class="info-value" id="dispDepartment">{{ doctor.department or 'General Medicine' }}</span>
+                    </div>
+
+                    <div class="info-item">
+                        <span class="info-label">Medical Registration Number</span>
+                        <span class="info-value" id="dispRegNoDetail">{{ doctor.medical_registration_number }}</span>
+                    </div>
+
+                    <div class="info-item">
+                        <span class="info-label">Hospital / Institution</span>
+                        <span class="info-value" id="dispHospitalDetail">{{ doctor.hospital_name }}</span>
+                    </div>
+
+                    <div class="info-item">
+                        <span class="info-label">Years of Experience</span>
+                        <span class="info-value" id="dispExperience">{{ doctor.experience_years or 8 }} Years</span>
+                    </div>
+
+                    <div class="info-item full-width">
+                        <span class="info-label">Professional Address</span>
+                        <span class="info-value" id="dispAddressDetail">{{ doctor.hospital_address }}</span>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- 2. MID ROW: ABOUT ME & WORKING PREFERENCES -->
+            <div class="mid-row-grid">
+
+                <!-- ABOUT ME (BIOGRAPHY) -->
+                <div class="profile-card">
+                    <div class="card-header-row">
+                        <div class="card-title-group">
+                            <div class="card-icon-pill">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3>About Me</h3>
+                                <p>Doctor's professional biography</p>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn-outline-sm" id="btnOpenBioModal">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                            Edit Bio
+                        </button>
+                    </div>
+
+                    <p class="bio-content-p" id="dispBio">{{ doctor.professional_bio }}</p>
+                </div>
+
+                <!-- WORKING PREFERENCES (SCHEDULE & MODE) -->
+                <div class="profile-card">
+                    <div class="card-header-row">
+                        <div class="card-title-group">
+                            <div class="card-icon-pill">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3>Working Preferences</h3>
+                                <p>Consultation schedule &amp; clinic availability</p>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn-outline-sm" id="btnOpenPrefsModal">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                            Edit Schedule
+                        </button>
+                    </div>
+
+                    <!-- Consultation Days -->
+                    <div class="pref-section">
+                        <span class="pref-label">Consultation Days</span>
+                        <div class="days-pill-wrap" id="dispDaysWrap">
+                            {% set all_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] %}
+                            {% for day in all_days %}
+                            <span class="day-badge {% if day in preferences.consultation_days %}active{% endif %}"
+                                  data-day="{{ day }}">
+                                {{ day[:3] }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Consultation Hours -->
+                    <div class="pref-section">
+                        <span class="pref-label">Consultation Hours</span>
+                        <div class="hours-display-row">
+                            <svg class="hours-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <span id="dispHours">{{ preferences.consultation_start_time }} – {{ preferences.consultation_end_time }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Consultation Mode -->
+                    <div class="pref-section" style="margin-bottom: 0;">
+                        <span class="pref-label">Consultation Mode</span>
+                        <span class="mode-badge" id="dispModeBadge">
+                            {% if preferences.consultation_mode == 'in_person' %}
+                            In-Person Clinic
+                            {% elif preferences.consultation_mode == 'teleconsultation' %}
+                            Teleconsultation Only
+                            {% else %}
+                            In-Person &amp; Teleconsultation
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+
+            <!-- 3. PROFESSIONAL DOCUMENTS CARD -->
+            <div class="profile-card">
+                <div class="card-header-row">
+                    <div class="card-title-group">
+                        <div class="card-icon-pill">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Professional Documents</h3>
+                            <p>Upload and manage medical licenses, degrees, and hospital credentials</p>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-primary-sm" id="btnOpenUploadDocModal">
+                        + Upload Document
+                    </button>
+                </div>
+
+                <!-- TABLE OF DOCUMENTS -->
+                <div class="table-responsive" style="{% if not documents %}display: none;{% endif %}">
+                    <table class="docs-table">
+                        <thead>
+                            <tr>
+                                <th>Document Name</th>
+                                <th>Type</th>
+                                <th>Upload Date</th>
+                                <th>Size</th>
+                                <th>Status</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="docsTableBody">
+                            {% for doc in documents %}
+                            <tr id="doc-row-{{ doc.id }}">
+                                <td>
+                                    <div class="doc-name-cell">
+                                        <div class="doc-icon-pill {% if 'pdf' in (doc.mime_type or '') or (doc.file_name or '').endswith('.pdf') %}pdf{% else %}image{% endif %}">
+                                            {% if 'pdf' in (doc.mime_type or '') or (doc.file_name or '').endswith('.pdf') %}
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                                <polyline points="10 9 9 9 8 9"></polyline>
+                                            </svg>
+                                            {% else %}
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                                <polyline points="21 15 16 10 5 21"></polyline>
+                                            </svg>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <strong>{{ doc.document_name }}</strong>
+                                            <div style="font-size: 11px; color: var(--text-muted);">{{ doc.file_name }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ doc.document_type_label }}</td>
+                                <td>{{ doc.created_at[:10] if doc.created_at else 'Verified' }}</td>
+                                <td>{{ doc.file_size_formatted or '—' }}</td>
+                                <td>
+                                    <span class="status-badge verified">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                        Verified
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="action-buttons-group" style="justify-content: flex-end;">
+                                        <a href="{{ url_for('doctor_profile_api_document_view', document_id=doc.id) }}"
+                                           target="_blank"
+                                           class="btn-icon-action"
+                                           title="View Document">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                            </svg>
+                                        </a>
+
+                                        <a href="{{ url_for('doctor_profile_api_document_download', document_id=doc.id) }}"
+                                           class="btn-icon-action"
+                                           title="Download Document">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                        </a>
+
+                                        <button type="button"
+                                                class="btn-icon-action danger btn-delete-doc"
+                                                data-doc-id="{{ doc.id }}"
+                                                data-doc-name="{{ doc.document_name }}"
+                                                title="Delete Document">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <polyline points="3 6 5 6 21 6"></polyline>
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- EMPTY STATE IF NO DOCUMENTS -->
+                <div class="empty-state-card" id="emptyDocsState" style="{% if documents %}display: none;{% endif %}">
+                    <div class="empty-state-icon">📄</div>
+                    <div class="empty-state-title">No Professional Documents Uploaded Yet</div>
+                    <div class="empty-state-desc">
+                        Upload your medical registration certificate, MBBS/MD degrees, or experience certificates for hospital credential verification.
+                    </div>
+                    <button type="button" class="btn-primary-sm" onclick="document.getElementById('btnOpenUploadDocModal').click();">
+                        + Upload First Document
+                    </button>
+                </div>
+            </div>
+
+
+            <!-- 4. ACCOUNT & SECURITY CARD -->
+            <div class="profile-card">
+                <div class="card-header-row">
+                    <div class="card-title-group">
+                        <div class="card-icon-pill">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3>Account &amp; Security</h3>
+                            <p>Authentication credentials, sessions, and data protection</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION A: CHANGE PASSWORD -->
+                <div class="security-section">
+                    <div class="security-section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        <span>Change Password</span>
+                    </div>
+
+                    <form id="formChangePassword">
+                        <div class="password-form-grid">
+                            <div class="form-group">
+                                <label class="form-label" for="inputCurrentPassword">Current Password</label>
+                                <input type="password"
+                                       class="form-control"
+                                       id="inputCurrentPassword"
+                                       placeholder="••••••••"
+                                       required>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="inputNewPassword">New Password</label>
+                                <input type="password"
+                                       class="form-control"
+                                       id="inputNewPassword"
+                                       placeholder="••••••••"
+                                       required>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="inputConfirmPassword">Confirm New Password</label>
+                                <input type="password"
+                                       class="form-control"
+                                       id="inputConfirmPassword"
+                                       placeholder="••••••••"
+                                       required>
+                            </div>
+                        </div>
+
+                        <div class="password-strength-info">
+                            <div class="strength-bullet" id="ruleLength">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <span>At least 8 characters</span>
+                            </div>
+                            <div class="strength-bullet" id="ruleAlphanumeric">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <span>Letters &amp; numbers</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-outline-sm" style="font-size: 13px; padding: 8px 18px;">
+                            Update Password
+                        </button>
+                    </form>
+                </div>
+
+                <!-- SECTION B: TWO-FACTOR AUTHENTICATION -->
+                <div class="security-section">
+                    <div class="security-section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                        </svg>
+                        <span>Two-Factor Authentication (2FA)</span>
+                        <span class="security-badge-pill">{{ two_factor.status }}</span>
+                    </div>
+
+                    <div class="security-notice-box">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-teal)" stroke-width="2" style="flex-shrink: 0; margin-top: 1px;">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <div>
+                            Two-Factor Authentication provides essential security to clinical patient records and prescription workflows.
+                            MFA hardware tokens or authenticator app integration is governed by hospital administration policy.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION C: ACTIVE SESSIONS -->
+                <div class="security-section">
+                    <div class="security-section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                        <span>Active Sessions</span>
+                    </div>
+
+                    {% for session in active_sessions %}
+                    <div class="active-session-row">
+                        <div class="session-info-left">
+                            <div class="session-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="session-title">{{ session.device }} &bull; {{ session.browser }}</div>
+                                <div class="session-sub">IP: {{ session.ip_address }} &bull; {{ session.location }} &bull; {{ session.login_time }}</div>
+                            </div>
+                        </div>
+
+                        <div class="session-status-badge">
+                            <span class="session-pulse-dot"></span>
+                            <span>Active Now</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     MODAL 1: EDIT PROFILE (PERSONAL & HOSPITAL)
+     ========================================================= -->
+<div class="profile-modal-overlay" id="editProfileModal">
+    <div class="profile-modal-box">
+        <div class="modal-header">
+            <h3>Edit Profile Details</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="editProfileModal">&times;</button>
+        </div>
+
+        <form id="formEditProfile">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="inputFullName">Full Name *</label>
+                    <input type="text"
+                           class="form-control"
+                           id="inputFullName"
+                           value="{{ doctor.full_name }}"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inputPhone">Phone Number</label>
+                    <input type="tel"
+                           class="form-control"
+                           id="inputPhone"
+                           value="{{ doctor.phone or '' }}"
+                           placeholder="+91 98765 43210">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inputHospitalName">Hospital / Institution Name *</label>
+                    <input type="text"
+                           class="form-control"
+                           id="inputHospitalName"
+                           value="{{ doctor.hospital_name }}"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inputHospitalAddress">Hospital Address *</label>
+                    <textarea class="form-control"
+                              id="inputHospitalAddress"
+                              rows="3"
+                              required>{{ doctor.hospital_address }}</textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal="editProfileModal">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="width: auto;">Save Changes</button>
+            </div>
+        </form>
     </div>
 </div>
+
+
+<!-- =========================================================
+     MODAL 2: EDIT PROFESSIONAL INFORMATION
+     ========================================================= -->
+<div class="profile-modal-overlay" id="editProfessionalModal">
+    <div class="profile-modal-box">
+        <div class="modal-header">
+            <h3>Edit Professional Information</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="editProfessionalModal">&times;</button>
+        </div>
+
+        <form id="formEditProfessional">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="inputQualification">Qualifications &amp; Degrees *</label>
+                    <input type="text"
+                           class="form-control"
+                           id="inputQualification"
+                           value="{{ doctor.qualification or 'MBBS, MD' }}"
+                           placeholder="e.g. MBBS, MD (General Medicine), FRCP"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inputSpecialization">Medical Specialization *</label>
+                    <input type="text"
+                           class="form-control"
+                           id="inputSpecialization"
+                           value="{{ doctor.specialization }}"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inputDepartment">Department *</label>
+                    <input type="text"
+                           class="form-control"
+                           id="inputDepartment"
+                           value="{{ doctor.department or 'General Medicine' }}"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inputExperience">Years of Clinical Experience *</label>
+                    <input type="number"
+                           class="form-control"
+                           id="inputExperience"
+                           value="{{ doctor.experience_years or 8 }}"
+                           min="0"
+                           max="70"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inputProfAddress">Professional Address</label>
+                    <textarea class="form-control"
+                              id="inputProfAddress"
+                              rows="2">{{ doctor.hospital_address }}</textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal="editProfessionalModal">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="width: auto;">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     MODAL 3: EDIT BIOGRAPHY (ABOUT ME)
+     ========================================================= -->
+<div class="profile-modal-overlay" id="editBioModal">
+    <div class="profile-modal-box">
+        <div class="modal-header">
+            <h3>Edit Professional Biography</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="editBioModal">&times;</button>
+        </div>
+
+        <form id="formEditBio">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="inputBioText">
+                        About Me
+                        <span class="char-counter" id="bioCharCounter">0 / 1000</span>
+                    </label>
+                    <textarea class="form-control"
+                              id="inputBioText"
+                              rows="6"
+                              maxlength="1000"
+                              placeholder="Write a brief professional summary of your clinical experience, specializations, and patient care philosophy...">{{ doctor.professional_bio }}</textarea>
+                    <span class="form-hint">Brief background for patients and medical colleagues (max 1000 characters).</span>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal="editBioModal">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="width: auto;">Save Biography</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     MODAL 4: EDIT WORKING PREFERENCES
+     ========================================================= -->
+<div class="profile-modal-overlay" id="editPrefsModal">
+    <div class="profile-modal-box">
+        <div class="modal-header">
+            <h3>Edit Working Preferences</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="editPrefsModal">&times;</button>
+        </div>
+
+        <form id="formEditPreferences">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Available Consultation Days *</label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 6px;">
+                        {% set days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] %}
+                        {% for d in days_list %}
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+                            <input type="checkbox"
+                                   name="consultation_days"
+                                   value="{{ d }}"
+                                   {% if d in preferences.consultation_days %}checked{% endif %}>
+                            <span>{{ d }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px;">
+                    <div class="form-group">
+                        <label class="form-label" for="inputStartTime">Start Time *</label>
+                        <input type="time"
+                               class="form-control"
+                               id="inputStartTime"
+                               value="{{ preferences.consultation_start_time or '09:00' }}"
+                               required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="inputEndTime">End Time *</label>
+                        <input type="time"
+                               class="form-control"
+                               id="inputEndTime"
+                               value="{{ preferences.consultation_end_time or '17:00' }}"
+                               required>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 14px;">
+                    <label class="form-label" for="inputConsultationMode">Consultation Mode *</label>
+                    <select class="form-control" id="inputConsultationMode">
+                        <option value="both" {% if preferences.consultation_mode == 'both' %}selected{% endif %}>In-Person &amp; Teleconsultation</option>
+                        <option value="in_person" {% if preferences.consultation_mode == 'in_person' %}selected{% endif %}>In-Person Clinic Only</option>
+                        <option value="teleconsultation" {% if preferences.consultation_mode == 'teleconsultation' %}selected{% endif %}>Teleconsultation Only</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal="editPrefsModal">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="width: auto;">Save Schedule</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     MODAL 5: UPLOAD PROFESSIONAL DOCUMENT
+     ========================================================= -->
+<div class="profile-modal-overlay" id="uploadDocModal">
+    <div class="profile-modal-box">
+        <div class="modal-header">
+            <h3>Upload Professional Document</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="uploadDocModal">&times;</button>
+        </div>
+
+        <form id="formUploadDocument">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="inputDocName">Document Title *</label>
+                    <input type="text"
+                           class="form-control"
+                           id="inputDocName"
+                           placeholder="e.g. State Medical Council Registration Certificate"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inputDocType">Document Type *</label>
+                    <select class="form-control" id="inputDocType" required>
+                        <option value="medical_registration">Medical Registration Certificate</option>
+                        <option value="mbbs_degree">MBBS / Primary Medical Degree</option>
+                        <option value="postgraduate_degree">Postgraduate Degree / Fellowship</option>
+                        <option value="experience_certificate">Experience / Hospital Affiliation</option>
+                        <option value="identity_proof">Government / Medical Identity Proof</option>
+                        <option value="other">Other Supporting Document</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Select Document File *</label>
+                    <div class="file-dropzone" id="docDropzone">
+                        <div class="dropzone-icon">📁</div>
+                        <div class="dropzone-title">Click to browse or drag and drop your file</div>
+                        <div class="dropzone-desc">Supported formats: PDF, JPG, PNG, WEBP (Max 10 MB)</div>
+                    </div>
+                    <input type="file"
+                           id="docFileInput"
+                           accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"
+                           style="display: none;">
+
+                    <div class="selected-file-preview" id="docFilePreview">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            </svg>
+                            <div>
+                                <strong id="docFileNameDisp">document.pdf</strong>
+                                <span id="docFileSizeDisp" style="color: var(--text-muted); margin-left: 6px;"></span>
+                            </div>
+                        </div>
+                        <button type="button" class="avatar-remove-btn" id="btnClearDocFile" style="margin: 0;">Remove</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal="uploadDocModal">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="width: auto;">Upload &amp; Verify</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     MODAL 6: DELETE DOCUMENT CONFIRMATION
+     ========================================================= -->
+<div class="profile-modal-overlay" id="deleteDocModal">
+    <div class="profile-modal-box" style="max-width: 440px;">
+        <div class="modal-header">
+            <h3>Delete Document</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="deleteDocModal">&times;</button>
+        </div>
+
+        <div class="modal-body" style="text-align: center; padding: 28px 24px;">
+            <div style="font-size: 38px; margin-bottom: 12px;">⚠️</div>
+            <h4 style="margin: 0 0 8px; color: var(--text-navy);">Are you sure?</h4>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px;">
+                You are about to permanently delete <strong id="deleteDocNameDisp" style="color: var(--text-navy);">this document</strong>.
+                This action cannot be undone.
+            </p>
+        </div>
+
+        <div class="modal-footer" style="justify-content: center;">
+            <button type="button" class="btn btn-secondary" data-close-modal="deleteDocModal">Cancel</button>
+            <button type="button" class="btn btn-danger" id="btnConfirmDeleteDoc">Delete Document</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     TOAST CONTAINER
+     ========================================================= -->
+<div class="profile-toast-container" id="profileToastContainer"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/doctor_profile.js') }}"></script>
 {% endblock %}
