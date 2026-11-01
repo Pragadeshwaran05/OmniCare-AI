@@ -70,10 +70,19 @@ def _write_json_file(filepath: str, data: Any) -> None:
         tmp_path = f"{filepath}.tmp"
         with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
-        if os.path.exists(filepath):
-            os.replace(tmp_path, filepath)
-        else:
-            os.rename(tmp_path, filepath)
+        try:
+            if os.path.exists(filepath):
+                os.replace(tmp_path, filepath)
+            else:
+                os.rename(tmp_path, filepath)
+        except Exception:
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, default=str)
+            if os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except Exception:
+                    pass
     except Exception as e:
         print(f"[DoctorProfileService] Error writing {filepath}: {e}")
 

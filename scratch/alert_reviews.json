@@ -62,5 +62,13 @@
     "patient_id": "a8360a17-d8a0-4524-bcc2-b1b4775e5c4f",
     "review_notes": "Reviewed by clinician in test simulation.",
     "reviewed_at": "2026-10-24T14:13:46.255211+00:00"
+  },
+  {
+    "doctor_id": "ea83806c-f033-4012-944b-22098514d9e9",
+    "alert_id": "abn-a8360a17-d8a0-4524-bcc2-b1b4775e5c4f-Fasting Blood Glucose-2026-09-28",
+    "alert_type": "abnormal_report",
+    "patient_id": "a8360a17-d8a0-4524-bcc2-b1b4775e5c4f",
+    "review_notes": "Clinician acknowledged: Abnormal Fasting Blood Glucose: 142 mg/dL \u00b7 2026-09-28",
+    "reviewed_at": "2026-11-01T06:14:42.589079+00:00"
   }
 ]

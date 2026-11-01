@@ -1,21 +1,767 @@
 {% extends "doctor_base.html" %}
 
-{% block title %}Settings - OmniCare AI{% endblock %}
+{% block title %}
+Settings - Doctor Portal | OmniCare AI
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/doctor_settings.css') }}">
+{% endblock %}
 
 {% block content %}
-<div class="doctor-dashboard">
-    <div class="dashboard-header">
-        <div>
-            <span class="dashboard-label">DOCTOR PORTAL</span>
-            <h1>Account Settings</h1>
-            <p>Manage portal preferences, security, and notification settings.</p>
+<div class="settings-page-container">
+
+    <!-- =========================================================
+         PAGE HEADER
+         ========================================================= -->
+    <div class="settings-header">
+        <div class="settings-header-left">
+            <span class="doctor-portal-pill">DOCTOR PORTAL</span>
+            <h1>Settings</h1>
+            <p>Manage your account, security, preferences, and application settings.</p>
+        </div>
+
+        <div class="settings-header-right">
+            <div class="header-doctor-badge">
+                <div class="header-doctor-avatar">
+                    {% if doctor.profile_photo_url %}
+                    <img src="{{ doctor.profile_photo_url }}" alt="Dr. {{ doctor.full_name }}">
+                    {% else %}
+                    👨‍⚕️
+                    {% endif %}
+                </div>
+                <div class="header-doctor-info">
+                    <span class="header-doctor-name" id="headerDoctorName">Dr. {{ doctor.full_name }}</span>
+                    <span class="header-doctor-role">{{ doctor.specialization }}</span>
+                </div>
+            </div>
         </div>
     </div>
-    <div class="empty-patients">
-        <div class="empty-icon">⚙️</div>
-        <h3>Doctor Settings</h3>
-        <p>Security and notification controls.</p>
-        <a href="{{ url_for('doctor_dashboard') }}" class="primary-button">Back to Dashboard</a>
+
+
+    <!-- =========================================================
+         TWO-COLUMN SETTINGS GRID
+         ========================================================= -->
+    <div class="settings-grid">
+
+        <!-- =====================================================
+             ROW 1 - LEFT: ACCOUNT SETTINGS
+             ===================================================== -->
+        <div class="settings-card">
+            <div class="card-header-row">
+                <div class="card-title-group">
+                    <div class="card-icon-pill">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Account Settings</h3>
+                        <p>Update your personal and professional information.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-rows-list">
+                <!-- 1. Edit Profile -->
+                <div class="setting-row-item setting-row-clickable" id="rowEditProfile">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">
+                            <span>Edit Profile</span>
+                        </div>
+                        <div class="setting-row-desc">Update your name, contact, hospital and biography.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <button type="button" class="action-chevron-btn" title="Edit Profile">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Professional Details -->
+                <div class="setting-row-item setting-row-clickable" id="rowEditProfessional">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">
+                            <span>Professional Details</span>
+                        </div>
+                        <div class="setting-row-desc">Manage qualification, specialization and registration.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <button type="button" class="action-chevron-btn" title="Edit Professional Details">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Working Preferences -->
+                <div class="setting-row-item setting-row-clickable" id="rowEditWorkingPrefs">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">
+                            <span>Working Preferences</span>
+                        </div>
+                        <div class="setting-row-desc">Set consultation days, hours and mode.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <button type="button" class="action-chevron-btn" title="Edit Working Preferences">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- =====================================================
+             ROW 1 - RIGHT: SECURITY & LOGIN
+             ===================================================== -->
+        <div class="settings-card">
+            <div class="card-header-row">
+                <div class="card-title-group">
+                    <div class="card-icon-pill">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Security &amp; Login</h3>
+                        <p>Keep your account secure and control access.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-rows-list">
+                <!-- 1. Change Password -->
+                <div class="setting-row-item">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">Change Password</div>
+                        <div class="setting-row-desc">Update your portal login password.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <button type="button" class="btn btn-outline-sm" id="btnOpenChangePassword">
+                            Change
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Two-Factor Authentication (2FA) -->
+                <div class="setting-row-item">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">
+                            <span>Two-Factor Authentication (2FA)</span>
+                            <span class="status-pill disconnected" style="padding: 2px 8px; font-size: 11px;">Not Configured</span>
+                        </div>
+                        <div class="setting-row-desc">Two-factor authentication adds extra security.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <button type="button" class="btn btn-outline-sm" id="btnOpen2FA">
+                            Info
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Active Sessions -->
+                <div class="setting-row-item">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">
+                            <span>Active Sessions</span>
+                            <span class="status-pill connected" style="padding: 2px 8px; font-size: 11px;">Active Now</span>
+                        </div>
+                        <div class="setting-row-desc">Manage devices where you are logged in.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <button type="button" class="btn btn-outline-sm" id="btnOpenSessions">
+                            View
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- =====================================================
+             ROW 2 - LEFT: NOTIFICATIONS
+             ===================================================== -->
+        <div class="settings-card">
+            <div class="card-header-row">
+                <div class="card-title-group">
+                    <div class="card-icon-pill">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Notifications</h3>
+                        <p>Choose what updates you want to receive.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-rows-list">
+                <!-- 1. Patient Access Requests -->
+                <div class="setting-row-item">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">Patient Access Requests</div>
+                        <div class="setting-row-desc">Get notified for new access requests.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <label class="toggle-switch-wrap" for="toggleAccessRequests">
+                            <input type="checkbox"
+                                   id="toggleAccessRequests"
+                                   {% if settings.notify_access_requests %}checked{% endif %}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 2. Access Expiry & Revocation -->
+                <div class="setting-row-item">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">Access Expiry &amp; Revocation</div>
+                        <div class="setting-row-desc">Receive alerts for expiring or revoked access.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <label class="toggle-switch-wrap" for="toggleAccessExpiry">
+                            <input type="checkbox"
+                                   id="toggleAccessExpiry"
+                                   {% if settings.notify_access_expiry %}checked{% endif %}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 3. System & Important Updates -->
+                <div class="setting-row-item">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">System &amp; Important Updates</div>
+                        <div class="setting-row-desc">Product updates, maintenance and announcements.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <label class="toggle-switch-wrap" for="toggleSystemUpdates">
+                            <input type="checkbox"
+                                   id="toggleSystemUpdates"
+                                   {% if settings.notify_system_updates %}checked{% endif %}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- =====================================================
+             ROW 2 - RIGHT: APPEARANCE
+             ===================================================== -->
+        <div class="settings-card">
+            <div class="card-header-row">
+                <div class="card-title-group">
+                    <div class="card-icon-pill">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M12 2a7 7 0 0 0 0 14v6"></path>
+                            <circle cx="12" cy="12" r="2"></circle>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Appearance</h3>
+                        <p>Customize the look and feel of your portal.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- THEME SELECTION -->
+            <div class="appearance-section">
+                <div class="appearance-section-title">Theme</div>
+                <div class="segmented-options-grid">
+                    <button type="button"
+                            class="option-select-btn {% if settings.theme == 'light' %}active{% endif %}"
+                            data-theme-choice="light">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                        <span>Light</span>
+                    </button>
+
+                    <button type="button"
+                            class="option-select-btn {% if settings.theme == 'dark' %}active{% endif %}"
+                            data-theme-choice="dark">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                        <span>Dark</span>
+                    </button>
+
+                    <button type="button"
+                            class="option-select-btn {% if settings.theme == 'system' %}active{% endif %}"
+                            data-theme-choice="system">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                        <span>System</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SIDEBAR VIEW SELECTION -->
+            <div class="appearance-section">
+                <div class="appearance-section-title">Sidebar View</div>
+                <div class="segmented-options-grid cols-2">
+                    <button type="button"
+                            class="option-select-btn {% if settings.sidebar_mode == 'expanded' %}active{% endif %}"
+                            data-sidebar-choice="expanded">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="9" y1="3" x2="9" y2="21"></line>
+                        </svg>
+                        <span>Expanded</span>
+                    </button>
+
+                    <button type="button"
+                            class="option-select-btn {% if settings.sidebar_mode == 'compact' %}active{% endif %}"
+                            data-sidebar-choice="compact">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="7" y1="3" x2="7" y2="21"></line>
+                        </svg>
+                        <span>Compact</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- =====================================================
+             ROW 3 - LEFT: DATA & PRIVACY
+             ===================================================== -->
+        <div class="settings-card">
+            <div class="card-header-row">
+                <div class="card-title-group">
+                    <div class="card-icon-pill">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Data &amp; Privacy</h3>
+                        <p>Control your data, privacy and account usage.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-rows-list">
+                <!-- 1. Download My Data -->
+                <div class="setting-row-item">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">Download My Data</div>
+                        <div class="setting-row-desc">Export your profile and activity data.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <button type="button" class="btn btn-outline-sm" id="btnDownloadData">
+                            Export
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Delete Account -->
+                <div class="setting-row-item">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title" style="color: var(--status-danger-text);">Delete Account</div>
+                        <div class="setting-row-desc">Permanently remove your account and data.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <button type="button" class="btn btn-outline-danger" id="btnOpenDeleteAccount">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- =====================================================
+             ROW 3 - RIGHT: CONNECTED SERVICES
+             ===================================================== -->
+        <div class="settings-card">
+            <div class="card-header-row">
+                <div class="card-title-group">
+                    <div class="card-icon-pill">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3>Connected Services</h3>
+                        <p>Manage integrations with external services.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-rows-list">
+                <!-- 1. Supabase -->
+                <div class="setting-row-item">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">Supabase</div>
+                        <div class="setting-row-desc">Database &amp; file storage.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <span class="status-pill {{ services.supabase.status|lower|replace(' ', '-') }}" id="statusPillSupabase">
+                            <span class="status-dot"></span>
+                            <span id="statusTextSupabase">{{ services.supabase.status }}</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 2. Gemini AI -->
+                <div class="setting-row-item">
+                    <div class="setting-row-info">
+                        <div class="setting-row-title">Gemini AI</div>
+                        <div class="setting-row-desc">Medical document processing &amp; clinical insights.</div>
+                    </div>
+                    <div class="setting-row-action">
+                        <span class="status-pill {{ services.gemini.status|lower|replace(' ', '-') }}" id="statusPillGemini">
+                            <span class="status-dot"></span>
+                            <span id="statusTextGemini">{{ services.gemini.status }}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     MODAL: EDIT PROFILE
+     ========================================================= -->
+<div class="settings-modal-overlay" id="modalEditProfileSettings">
+    <div class="settings-modal-box">
+        <div class="modal-header">
+            <h3>Edit Profile</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="modalEditProfileSettings">&times;</button>
+        </div>
+        <form id="formEditProfileSettings">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="settingsFullName">Full Name *</label>
+                    <input type="text" class="form-control" id="settingsFullName" value="{{ doctor.full_name }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="settingsPhone">Phone Number</label>
+                    <input type="tel" class="form-control" id="settingsPhone" value="{{ doctor.phone or '' }}" placeholder="+91 98765 43210">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="settingsHospitalName">Hospital / Institution Name *</label>
+                    <input type="text" class="form-control" id="settingsHospitalName" value="{{ doctor.hospital_name }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="settingsHospitalAddress">Hospital Address *</label>
+                    <textarea class="form-control" id="settingsHospitalAddress" rows="3" required>{{ doctor.hospital_address }}</textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal="modalEditProfileSettings">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
     </div>
 </div>
+
+
+<!-- =========================================================
+     MODAL: EDIT PROFESSIONAL DETAILS
+     ========================================================= -->
+<div class="settings-modal-overlay" id="modalEditProfessionalSettings">
+    <div class="settings-modal-box">
+        <div class="modal-header">
+            <h3>Professional Details</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="modalEditProfessionalSettings">&times;</button>
+        </div>
+        <form id="formEditProfessionalSettings">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="settingsQualification">Qualification / Degrees *</label>
+                    <input type="text" class="form-control" id="settingsQualification" value="{{ doctor.qualification or 'MBBS, MD' }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="settingsSpecialization">Specialization *</label>
+                    <input type="text" class="form-control" id="settingsSpecialization" value="{{ doctor.specialization }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="settingsDepartment">Department *</label>
+                    <input type="text" class="form-control" id="settingsDepartment" value="{{ doctor.department or 'General Medicine' }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="settingsExperience">Years of Experience *</label>
+                    <input type="number" class="form-control" id="settingsExperience" value="{{ doctor.experience_years or 8 }}" min="0" max="70" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal="modalEditProfessionalSettings">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     MODAL: EDIT WORKING PREFERENCES
+     ========================================================= -->
+<div class="settings-modal-overlay" id="modalEditWorkingPrefsSettings">
+    <div class="settings-modal-box">
+        <div class="modal-header">
+            <h3>Working Preferences</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="modalEditWorkingPrefsSettings">&times;</button>
+        </div>
+        <form id="formEditWorkingPrefsSettings">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Available Consultation Days *</label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 6px;">
+                        {% set days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] %}
+                        {% for d in days_list %}
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+                            <input type="checkbox" name="consultation_days" value="{{ d }}"
+                                   {% if d in preferences.consultation_days %}checked{% endif %}>
+                            <span>{{ d }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px;">
+                    <div class="form-group">
+                        <label class="form-label" for="settingsStartTime">Start Time *</label>
+                        <input type="time" class="form-control" id="settingsStartTime" value="{{ preferences.consultation_start_time or '09:00' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="settingsEndTime">End Time *</label>
+                        <input type="time" class="form-control" id="settingsEndTime" value="{{ preferences.consultation_end_time or '17:00' }}" required>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 14px;">
+                    <label class="form-label" for="settingsConsultationMode">Consultation Mode *</label>
+                    <select class="form-control" id="settingsConsultationMode">
+                        <option value="both" {% if preferences.consultation_mode == 'both' %}selected{% endif %}>In-Person &amp; Teleconsultation</option>
+                        <option value="in_person" {% if preferences.consultation_mode == 'in_person' %}selected{% endif %}>In-Person Clinic Only</option>
+                        <option value="teleconsultation" {% if preferences.consultation_mode == 'teleconsultation' %}selected{% endif %}>Teleconsultation Only</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal="modalEditWorkingPrefsSettings">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Preferences</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     MODAL: CHANGE PASSWORD
+     ========================================================= -->
+<div class="settings-modal-overlay" id="modalChangePasswordSettings">
+    <div class="settings-modal-box">
+        <div class="modal-header">
+            <h3>Change Password</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="modalChangePasswordSettings">&times;</button>
+        </div>
+        <form id="formChangePasswordSettings">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label" for="settingsCurrentPassword">Current Password *</label>
+                    <div class="password-input-wrap">
+                        <input type="password" class="form-control" id="settingsCurrentPassword" placeholder="••••••••" required>
+                        <button type="button" class="password-toggle-btn" data-target-input="settingsCurrentPassword" title="Show/hide password">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="settingsNewPassword">New Password *</label>
+                    <div class="password-input-wrap">
+                        <input type="password" class="form-control" id="settingsNewPassword" placeholder="••••••••" required>
+                        <button type="button" class="password-toggle-btn" data-target-input="settingsNewPassword" title="Show/hide password">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="settingsConfirmPassword">Confirm New Password *</label>
+                    <div class="password-input-wrap">
+                        <input type="password" class="form-control" id="settingsConfirmPassword" placeholder="••••••••" required>
+                        <button type="button" class="password-toggle-btn" data-target-input="settingsConfirmPassword" title="Show/hide password">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="font-size: 12px; color: var(--text-muted); display: flex; gap: 14px; margin-top: 10px;">
+                    <span id="settingsRuleLength">&bull; At least 8 characters</span>
+                    <span id="settingsRuleAlphanumeric">&bull; Letters &amp; numbers</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal="modalChangePasswordSettings">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     MODAL: TWO-FACTOR AUTHENTICATION (2FA) INFO
+     ========================================================= -->
+<div class="settings-modal-overlay" id="modalTwoFactorSettings">
+    <div class="settings-modal-box">
+        <div class="modal-header">
+            <h3>Two-Factor Authentication (2FA)</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="modalTwoFactorSettings">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="display: flex; align-items: flex-start; gap: 14px; padding: 14px; background: var(--bg-subtle); border: 1px solid var(--border-soft); border-radius: var(--radius-md); margin-bottom: 16px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary-teal)" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <div style="font-size: 13px; line-height: 1.5; color: var(--text-slate);">
+                    <strong>Status: Not Configured</strong>
+                    <p style="margin: 4px 0 0;">Two-factor authentication adds an essential verification step to safeguard confidential medical records against unauthorized clinical access.</p>
+                </div>
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0 0 10px;">
+                OmniCare AI relies on enterprise hospital IT administration for biometric, hardware key (FIDO2), or TOTP authenticator enrollment.
+            </p>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0;">
+                To enroll your workstation or request an MFA token, please contact your hospital clinical IT security desk.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-primary" data-close-modal="modalTwoFactorSettings">Understood</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     MODAL: ACTIVE SESSIONS
+     ========================================================= -->
+<div class="settings-modal-overlay" id="modalActiveSessionsSettings">
+    <div class="settings-modal-box">
+        <div class="modal-header">
+            <h3>Active Sessions</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="modalActiveSessionsSettings">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px;">
+                You are currently signed into OmniCare AI from the following clinical workstation session:
+            </p>
+            {% for sess in active_sessions %}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px; background: var(--bg-subtle); border: 1px solid var(--border-soft); border-radius: var(--radius-md);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="card-icon-pill" style="width: 36px; height: 36px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                    </div>
+                    <div>
+                        <div style="font-size: 14px; font-weight: 700; color: var(--text-navy);">{{ sess.device }} &bull; {{ sess.browser }}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">IP: {{ sess.ip_address }} &bull; {{ sess.location }}</div>
+                    </div>
+                </div>
+                <span class="status-pill connected" style="font-size: 11px;">Active Now</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-close-modal="modalActiveSessionsSettings">Close</button>
+            <button type="button" class="btn btn-outline-danger" id="btnTerminateSession">Sign Out Workstation</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     MODAL: DELETE ACCOUNT CONFIRMATION
+     ========================================================= -->
+<div class="settings-modal-overlay" id="modalDeleteAccountSettings">
+    <div class="settings-modal-box" style="max-width: 480px;">
+        <div class="modal-header">
+            <h3 style="color: var(--status-danger-text);">Deactivate Account</h3>
+            <button type="button" class="modal-close-btn" data-close-modal="modalDeleteAccountSettings">&times;</button>
+        </div>
+        <form id="formDeleteAccount">
+            <div class="modal-body">
+                <div style="text-align: center; margin-bottom: 16px;">
+                    <div style="font-size: 38px;">⚠️</div>
+                    <h4 style="margin: 8px 0 6px; color: var(--text-navy);">Permanent Account Action</h4>
+                    <p style="font-size: 13px; color: var(--text-muted); margin: 0; line-height: 1.5;">
+                        Deactivating your account will terminate your doctor access and credentials.
+                        Under clinical compliance regulations (HIPAA/GDPR), historical audit logs and previously shared patient medical records will be preserved securely.
+                    </p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inputDeletePassword">Enter Current Password to Confirm *</label>
+                    <input type="password" class="form-control" id="inputDeletePassword" placeholder="••••••••" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="inputDeleteConfirmText">Type <strong>DELETE MY ACCOUNT</strong> to confirm *</label>
+                    <input type="text" class="form-control" id="inputDeleteConfirmText" placeholder="DELETE MY ACCOUNT" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal="modalDeleteAccountSettings">Cancel</button>
+                <button type="submit" class="btn btn-danger">Deactivate My Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- =========================================================
+     TOAST CONTAINER
+     ========================================================= -->
+<div class="settings-toast-container" id="settingsToastContainer"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/doctor_settings.js') }}"></script>
 {% endblock %}

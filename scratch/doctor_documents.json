@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": "d26e1b30-207a-4784-849f-bdab52ec3f0b",
+    "doctor_id": "ea83806c-f033-4012-944b-22098514d9e9",
+    "document_name": "State Medical Council Registration",
+    "document_type": "medical_registration",
+    "document_type_label": "Medical Registration Certificate",
+    "file_name": "mci_reg.pdf",
+    "file_size": 30,
+    "file_size_formatted": "30 B",
+    "file_path": "doctors/ea83806c-f033-4012-944b-22098514d9e9/documents/d26e1b30-207a-4784-849f-bdab52ec3f0b.pdf",
+    "file_url": "/static/uploads/doctors/ea83806c-f033-4012-944b-22098514d9e9/documents/d26e1b30-207a-4784-849f-bdab52ec3f0b.pdf",
+    "mime_type": "application/pdf",
+    "status": "Verified",
+    "created_at": "2026-11-01T06:42:48.469586+00:00",
+    "updated_at": "2026-11-01T06:42:48.469586+00:00"
+  }
+]

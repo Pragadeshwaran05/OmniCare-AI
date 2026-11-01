@@ -42,6 +42,13 @@ from services.doctor_profile_service import (
     get_active_sessions_info,
     get_two_factor_status,
 )
+from services.doctor_settings_service import (
+    get_doctor_settings,
+    update_doctor_settings,
+    check_connected_services_status,
+    export_doctor_data,
+    deactivate_doctor_account,
+)
 import os
 import httpx
 import qrcode
@@ -3548,11 +3555,182 @@ def doctor_profile_api_change_password():
     return jsonify({"success": True, "message": message}), 200
 
 
+# ============================================================
+# DOCTOR SETTINGS ROUTES & APIS
+# ============================================================
+
 @app.route("/doctor/settings")
 def doctor_settings():
     if "doctor_id" not in session:
         return redirect(url_for("doctor_login"))
-    return render_template("doctor/doctor_settings.html")
+
+    doctor_id = session.get("doctor_id")
+    profile = get_doctor_profile(doctor_id, supabase_admin, session)
+    settings = get_doctor_settings(doctor_id, supabase_admin)
+    preferences = get_working_preferences(doctor_id, supabase_admin)
+    active_sessions = get_active_sessions_info(
+        doctor_id,
+        remote_addr=request.remote_addr,
+        user_agent_str=request.headers.get("User-Agent")
+    )
+    services = check_connected_services_status(supabase_admin)
+    two_factor = get_two_factor_status(doctor_id)
+
+    return render_template(
+        "doctor/doctor_settings.html",
+        doctor=profile,
+        settings=settings,
+        preferences=preferences,
+        active_sessions=active_sessions,
+        services=services,
+        two_factor=two_factor
+    )
+
+
+@app.route("/doctor/settings/api/preferences", methods=["GET", "POST"])
+def doctor_settings_api_preferences():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or request.form.to_dict()
+        success, message, clean_settings = update_doctor_settings(doctor_id, data, supabase_admin)
+        if not success:
+            return jsonify({"success": False, "error": message}), 400
+
+        try:
+            log_audit_event(
+                doctor_id=doctor_id,
+                action="DOCTOR_SETTINGS_UPDATED",
+                status="SUCCESS",
+                metadata={"updated_fields": list(data.keys())},
+                client_ip=request.remote_addr
+            )
+        except Exception as e:
+            print("[DoctorSettings] Settings update audit error:", e)
+
+        return jsonify({"success": True, "message": message, "settings": clean_settings}), 200
+
+    settings = get_doctor_settings(doctor_id, supabase_admin)
+    return jsonify({"success": True, "settings": settings}), 200
+
+
+@app.route("/doctor/settings/api/change-password", methods=["POST"])
+def doctor_settings_api_change_password():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    data = request.get_json(silent=True) or request.form.to_dict()
+
+    current_password = data.get("current_password", "").strip()
+    new_password = data.get("new_password", "").strip()
+    confirm_password = data.get("confirm_password", "").strip()
+
+    success, message = change_doctor_password(
+        doctor_id, current_password, new_password, confirm_password, supabase_admin
+    )
+    if not success:
+        return jsonify({"success": False, "error": message}), 400
+
+    try:
+        log_audit_event(
+            doctor_id=doctor_id,
+            action="DOCTOR_PASSWORD_CHANGED",
+            status="SUCCESS",
+            client_ip=request.remote_addr
+        )
+    except Exception as e:
+        print("[DoctorSettings] Password change audit notice:", e)
+
+    return jsonify({"success": True, "message": message}), 200
+
+
+@app.route("/doctor/settings/api/sessions", methods=["GET"])
+def doctor_settings_api_sessions():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    sessions_list = get_active_sessions_info(
+        doctor_id,
+        remote_addr=request.remote_addr,
+        user_agent_str=request.headers.get("User-Agent")
+    )
+    return jsonify({"success": True, "sessions": sessions_list}), 200
+
+
+@app.route("/doctor/settings/api/sessions/<session_id>/revoke", methods=["POST"])
+def doctor_settings_api_session_revoke(session_id):
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    try:
+        log_audit_event(
+            doctor_id=doctor_id,
+            action="DOCTOR_SESSION_REVOKED",
+            status="SUCCESS",
+            metadata={"session_id": session_id},
+            client_ip=request.remote_addr
+        )
+    except Exception as e:
+        print("[DoctorSettings] Session revoke audit notice:", e)
+
+    return jsonify({"success": True, "message": f"Session {session_id} has been revoked."}), 200
+
+
+@app.route("/doctor/settings/api/services/status", methods=["GET"])
+def doctor_settings_api_services_status():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    services_status = check_connected_services_status(supabase_admin)
+    return jsonify({"success": True, "services": services_status}), 200
+
+
+@app.route("/doctor/settings/api/export", methods=["GET"])
+def doctor_settings_api_export():
+    if "doctor_id" not in session:
+        return redirect(url_for("doctor_login"))
+
+    doctor_id = session.get("doctor_id")
+    export_data = export_doctor_data(doctor_id, supabase_admin, session)
+
+    try:
+        log_audit_event(
+            doctor_id=doctor_id,
+            action="DOCTOR_DATA_EXPORTED",
+            status="SUCCESS",
+            client_ip=request.remote_addr
+        )
+    except Exception as e:
+        print("[DoctorSettings] Export audit notice:", e)
+
+    response = jsonify(export_data)
+    safe_doc_id = str(doctor_id).replace("-", "")[:8]
+    response.headers["Content-Disposition"] = f"attachment; filename=omnicare_doctor_data_{safe_doc_id}.json"
+    response.headers["Content-Type"] = "application/json; charset=utf-8"
+    return response
+
+
+@app.route("/doctor/settings/api/delete-account", methods=["POST"])
+def doctor_settings_api_delete_account():
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    doctor_id = session.get("doctor_id")
+    data = request.get_json(silent=True) or request.form.to_dict()
+    password_confirm = data.get("password_confirm", "").strip()
+
+    success, message = deactivate_doctor_account(doctor_id, password_confirm, supabase_admin)
+    if not success:
+        return jsonify({"success": False, "error": message}), 400
+
+    session.clear()
+    return jsonify({"success": True, "message": message}), 200
 # ---------------------------------------------------------
 # RUN APPLICATION
 # ---------------------------------------------------------

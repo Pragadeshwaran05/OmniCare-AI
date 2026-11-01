@@ -14,6 +14,27 @@
     </title>
 
 
+        <!-- Theme & Sidebar Immediate Pre-render Script -->
+    <script>
+        (function() {
+            try {
+                var theme = localStorage.getItem('omnicare_theme') || 'light';
+                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (theme === 'dark' || (theme === 'system' && prefersDark)) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    document.documentElement.classList.add('theme-dark');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    document.documentElement.classList.remove('theme-dark');
+                }
+                var sidebar = localStorage.getItem('omnicare_sidebar') || 'expanded';
+                if (sidebar === 'compact' && window.innerWidth > 700) {
+                    document.documentElement.classList.add('sidebar-compact');
+                }
+            } catch(e) {}
+        })();
+    </script>
+
     <!-- =================================================
          COMMON NAVIGATION CSS
          ================================================= -->
@@ -67,6 +88,97 @@
 
         }
 
+
+                /* =============================================
+           /* COMPACT SIDEBAR MODE */
+           ============================================= */
+        @media (min-width: 701px) {
+            html.sidebar-compact .doctor-sidebar {
+                width: 76px !important;
+                padding: 12px 10px 20px !important;
+            }
+            html.sidebar-compact .doctor-main {
+                margin-left: 76px !important;
+            }
+            html.sidebar-compact .doctor-sidebar-brand {
+                padding: 0 4px 16px !important;
+                justify-content: center !important;
+            }
+            html.sidebar-compact .doctor-sidebar-brand span:not(.doctor-brand-icon) {
+                display: none !important;
+            }
+            html.sidebar-compact .doctor-nav-text,
+            html.sidebar-compact .doctor-sidebar-heading,
+            html.sidebar-compact .doctor-profile-details {
+                display: none !important;
+            }
+            html.sidebar-compact .doctor-sidebar-link {
+                justify-content: center !important;
+                padding: 12px 0 !important;
+            }
+            html.sidebar-compact .doctor-nav-icon {
+                font-size: 20px !important;
+                margin: 0 !important;
+            }
+            html.sidebar-compact .doctor-profile-card {
+                padding: 8px 0 !important;
+                justify-content: center !important;
+            }
+        }
+
+        /* =============================================
+           DARK THEME SUPPORT ACROSS DOCTOR PORTAL
+           ============================================= */
+        html[data-theme="dark"] body,
+        html[data-theme="dark"] .doctor-main {
+            background: #0d1520 !important;
+            color: #cbd5e1 !important;
+        }
+        html[data-theme="dark"] .common-topbar {
+            background: #111c2d !important;
+            border-bottom: 1px solid #1e2c44 !important;
+        }
+        html[data-theme="dark"] .common-topbar-action {
+            background: #18263e !important;
+            border-color: #243552 !important;
+            color: #e2e8f0 !important;
+        }
+        html[data-theme="dark"] h1,
+        html[data-theme="dark"] h2,
+        html[data-theme="dark"] h3,
+        html[data-theme="dark"] h4 {
+            color: #f1f5f9 !important;
+        }
+        html[data-theme="dark"] .profile-card,
+        html[data-theme="dark"] .settings-card,
+        html[data-theme="dark"] .audit-card,
+        html[data-theme="dark"] .stat-card,
+        html[data-theme="dark"] .doctor-profile-card {
+            background: #162235 !important;
+            border-color: #22334d !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+        }
+        html[data-theme="dark"] .form-control {
+            background: #1b2940 !important;
+            border-color: #2c4161 !important;
+            color: #f1f5f9 !important;
+        }
+        html[data-theme="dark"] .btn-outline-sm,
+        html[data-theme="dark"] .btn-secondary {
+            background: #1b2940 !important;
+            border-color: #2c4161 !important;
+            color: #cbd5e1 !important;
+        }
+        html[data-theme="dark"] .profile-modal-box,
+        html[data-theme="dark"] .settings-modal-box {
+            background: #162235 !important;
+            color: #cbd5e1 !important;
+        }
+        html[data-theme="dark"] .modal-header,
+        html[data-theme="dark"] .modal-footer {
+            border-color: #22334d !important;
+            background: #111c2d !important;
+        }
 
         /* =============================================
            MAIN CONTENT
@@ -807,11 +919,16 @@
                 }
             );
 
-        </script>
-
-        {% block extra_js %}
-        {% endblock %}
-
+        </script>
+
+
+
+        {% block extra_js %}
+
+        {% endblock %}
+
+
+
     </body>
 
     </html>

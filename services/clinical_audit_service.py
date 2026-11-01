@@ -46,7 +46,9 @@ ACTION_LABELS = {
     "WORKING_PREFERENCES_UPDATED": "Working Preferences Updated",
     "CREDENTIAL_DOCUMENT_UPLOADED": "Credential Document Uploaded",
     "CREDENTIAL_DOCUMENT_DELETED": "Credential Document Deleted",
-    "DOCTOR_PASSWORD_CHANGED": "Doctor Password Changed"
+    "DOCTOR_PASSWORD_CHANGED": "Doctor Password Changed",
+    "DOCTOR_SETTINGS_UPDATED": "Doctor Settings Updated",
+    "DOCTOR_ACCOUNT_DEACTIVATED": "Doctor Account Deactivated"
 }
 
 
@@ -385,6 +387,17 @@ def get_doctor_notifications(
     patients_map = patients_map or {}
     now = datetime.now(timezone.utc)
 
+    # Load doctor notification preferences
+    try:
+        from services.doctor_settings_service import get_doctor_settings
+        doc_settings = get_doctor_settings(doctor_id)
+    except Exception:
+        doc_settings = {}
+
+    allow_requests = doc_settings.get("notify_access_requests", True)
+    allow_expiry = doc_settings.get("notify_access_expiry", True)
+    allow_system = doc_settings.get("notify_system_updates", True)
+
     notifications = []
     seen_ids = set()
 
@@ -400,7 +413,7 @@ def get_doctor_notifications(
         expires_at = req.get("expires_at")
 
         # 1. Access Expiring Soon
-        if status == "active" and expires_at:
+        if allow_expiry and status == "active" and expires_at:
             try:
                 exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
                 if exp_dt.tzinfo is None:
@@ -430,7 +443,7 @@ def get_doctor_notifications(
                 pass
 
         # 2. Access Granted / Approved
-        if status == "active":
+        if allow_requests and status == "active":
             notif_id = f"granted_{req_id}"
             if notif_id not in seen_ids:
                 seen_ids.add(notif_id)
@@ -451,7 +464,7 @@ def get_doctor_notifications(
                 })
 
         # 3. Access Request Pending / Pending Approval
-        elif status == "pending":
+        elif allow_requests and status == "pending":
             notif_id = f"pending_{req_id}"
             if notif_id not in seen_ids:
                 seen_ids.add(notif_id)
@@ -472,7 +485,7 @@ def get_doctor_notifications(
                 })
 
         # 4. Access Revoked
-        elif status == "revoked":
+        elif allow_expiry and status == "revoked":
             notif_id = f"revoked_{req_id}"
             if notif_id not in seen_ids:
                 seen_ids.add(notif_id)
@@ -493,7 +506,7 @@ def get_doctor_notifications(
                 })
 
         # 5. Access Expired
-        elif status == "expired":
+        elif allow_expiry and status == "expired":
             notif_id = f"expired_{req_id}"
             if notif_id not in seen_ids:
                 seen_ids.add(notif_id)
@@ -514,7 +527,7 @@ def get_doctor_notifications(
                 })
 
         # 6. Access Request Rejected / Denied
-        elif status in ("rejected", "denied"):
+        elif allow_requests and status in ("rejected", "denied"):
             notif_id = f"rejected_{req_id}"
             if notif_id not in seen_ids:
                 seen_ids.add(notif_id)
@@ -535,7 +548,7 @@ def get_doctor_notifications(
                 })
 
     # 7. Check audit trail for Unauthorized Access Attempts
-    if os.path.exists(AUDIT_LOG_FILE):
+    if allow_system and os.path.exists(AUDIT_LOG_FILE):
         try:
             with open(AUDIT_LOG_FILE, "r", encoding="utf-8") as f:
                 for line in f:
