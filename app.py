@@ -16,7 +16,17 @@ from services.clinical_copilot_service import (
     record_alert_review,
 )
 from services.clinical_query_service import execute_clinical_query
-from services.clinical_audit_service import get_doctor_audit_logs, log_clinical_event
+from services.clinical_audit_service import (
+    get_doctor_audit_logs,
+    log_clinical_event,
+    log_audit_event,
+    query_doctor_audit_logs,
+    get_audit_log_by_id,
+    get_doctor_notifications,
+    mark_notification_as_read,
+    mark_all_notifications_as_read,
+    ACTION_LABELS,
+)
 import os
 import httpx
 import qrcode
@@ -842,6 +852,20 @@ def patient_approve_access(request_id):
             .execute()
         )
 
+        try:
+            req_doc_id = existing.data[0].get("doctor_id")
+            if req_doc_id:
+                log_audit_event(
+                    doctor_id=req_doc_id,
+                    action="PATIENT_ACCESS_GRANTED",
+                    patient_ids=[patient_id],
+                    status="SUCCESS",
+                    metadata={"request_id": request_id, "access_type": access_type},
+                    client_ip=request.remote_addr
+                )
+        except Exception as audit_err:
+            print("Audit log error on approve access:", repr(audit_err))
+
         # -----------------------------------------------------
         # 5. SUCCESS MESSAGE
         # -----------------------------------------------------
@@ -995,6 +1019,20 @@ def patient_revoke_access(request_id):
             .eq("patient_id", patient_id)
             .execute()
         )
+
+        try:
+            req_doc_id = existing.data[0].get("doctor_id")
+            if req_doc_id:
+                log_audit_event(
+                    doctor_id=req_doc_id,
+                    action="PATIENT_ACCESS_REVOKED",
+                    patient_ids=[patient_id],
+                    status="SUCCESS",
+                    metadata={"request_id": request_id},
+                    client_ip=request.remote_addr
+                )
+        except Exception as audit_err:
+            print("Audit log error on revoke access:", repr(audit_err))
 
 
         flash(
@@ -2135,6 +2173,16 @@ def doctor_login():
                 session["doctor_name"] = doctor["full_name"]
                 session["doctor_email"] = doctor["email"]
 
+                try:
+                    log_audit_event(
+                        doctor_id=doctor["id"],
+                        action="DOCTOR_LOGIN",
+                        status="SUCCESS",
+                        client_ip=request.remote_addr
+                    )
+                except Exception as log_err:
+                    print("Audit log error on doctor login:", repr(log_err))
+
                 flash("Login successful!", "success")
                 return redirect(url_for("doctor_dashboard"))
 
@@ -2418,6 +2466,10 @@ def doctor_consultations():
     return render_template("doctor/doctor_consultations.html")
 
 
+# ============================================================
+# DOCTOR ACCESS & AUDIT LOG — PAGES & APIS
+# ============================================================
+
 @app.route("/doctor/access-audit")
 def doctor_access_audit():
     if "doctor_id" not in session:
@@ -2425,10 +2477,125 @@ def doctor_access_audit():
 
     doctor_id = session.get("doctor_id")
 
-    # Fetch audit logs recorded for this doctor
-    audit_logs = get_doctor_audit_logs(doctor_id, limit=50)
+    # Fetch doctor details from database
+    try:
+        doctor_response = (
+            supabase_admin
+            .table("doctors")
+            .select("*")
+            .eq("id", doctor_id)
+            .single()
+            .execute()
+        )
+        doctor = doctor_response.data or {}
+    except Exception as e:
+        print("Error fetching doctor for access-audit:", repr(e))
+        doctor = {}
 
-    # Fetch access requests for this doctor
+    if not doctor:
+        doctor = {
+            "id": doctor_id,
+            "full_name": session.get("doctor_name", "Doctor"),
+            "specialization": "Medical Specialist",
+            "medical_registration_number": "Registered",
+            "email": session.get("doctor_email", "")
+        }
+
+    return render_template(
+        "doctor/doctor_access_audit.html",
+        doctor=doctor
+    )
+
+
+@app.route("/doctor/access-audit/api/summary", methods=["GET"])
+def doctor_access_audit_summary():
+    """Returns access overview counts derived from database."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required"}), 401
+
+    doctor_id = session.get("doctor_id")
+    now = datetime.now(timezone.utc)
+
+    try:
+        access_res = (
+            supabase_admin
+            .table("access_requests")
+            .select("*")
+            .eq("doctor_id", doctor_id)
+            .execute()
+        )
+        records = access_res.data or []
+    except Exception as e:
+        print("Error fetching access summary:", repr(e))
+        return jsonify({
+            "success": False,
+            "error": "Failed to load access overview data.",
+            "summary": {
+                "total_requests": 0,
+                "active_access": 0,
+                "pending_requests": 0,
+                "revoked_expired": 0
+            }
+        }), 500
+
+    total_requests = len(records)
+    active_count = 0
+    pending_count = 0
+    revoked_expired_count = 0
+
+    for req in records:
+        st = (req.get("status") or "").lower()
+        expires_at = req.get("expires_at")
+
+        if st == "active":
+            if expires_at:
+                try:
+                    exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                    if exp_dt.tzinfo is None:
+                        exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+                    if now >= exp_dt:
+                        # Expire in database
+                        try:
+                            supabase_admin.table("access_requests").update({"status": "expired"}).eq("id", req["id"]).execute()
+                        except Exception:
+                            pass
+                        st = "expired"
+                except Exception:
+                    pass
+
+        if st == "active":
+            active_count += 1
+        elif st == "pending":
+            pending_count += 1
+        elif st in ("revoked", "expired", "rejected", "cancelled"):
+            revoked_expired_count += 1
+
+    return jsonify({
+        "success": True,
+        "summary": {
+            "total_requests": total_requests,
+            "active_access": active_count,
+            "pending_requests": pending_count,
+            "revoked_expired": revoked_expired_count
+        }
+    }), 200
+
+
+@app.route("/doctor/access-audit/api/patients", methods=["GET"])
+def doctor_access_audit_patients():
+    """Returns authorized patients for the authenticated doctor."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required"}), 401
+
+    doctor_id = session.get("doctor_id")
+    search_query = request.args.get("q", "").strip().lower()
+    status_filter = request.args.get("status", "all").strip().lower()
+    type_filter = request.args.get("type", "all").strip().lower()
+    page = max(1, int(request.args.get("page", 1)))
+    per_page = max(1, min(int(request.args.get("per_page", 10)), 50))
+
+    now = datetime.now(timezone.utc)
+
     try:
         access_res = (
             supabase_admin
@@ -2438,16 +2605,596 @@ def doctor_access_audit():
             .order("requested_at", desc=True)
             .execute()
         )
-        access_records = access_res.data or []
+        records = access_res.data or []
     except Exception as e:
-        print("Error fetching access audit records:", repr(e))
-        access_records = []
+        print("Error fetching patients list for access audit:", repr(e))
+        return jsonify({"success": False, "error": "Database error while retrieving patients."}), 500
 
-    return render_template(
-        "doctor/doctor_access_audit.html",
-        audit_logs=audit_logs,
-        access_records=access_records
-    )
+    patient_ids = list({r["patient_id"] for r in records if r.get("patient_id")})
+    patients_map = {}
+    if patient_ids:
+        try:
+            p_res = (
+                supabase_admin
+                .table("patients")
+                .select("id, full_name, health_id, gender, date_of_birth")
+                .in_("id", patient_ids)
+                .execute()
+            )
+            for p in (p_res.data or []):
+                patients_map[p["id"]] = p
+        except Exception as e:
+            print("Error retrieving patient records:", repr(e))
+
+    patient_list = []
+    seen_patients = set()
+
+    for req in records:
+        patient_id = req.get("patient_id")
+        if not patient_id:
+            continue
+
+        p = patients_map.get(patient_id, {})
+        full_name = p.get("full_name") or p.get("name") or "Unknown Patient"
+        health_id = p.get("health_id") or "N/A"
+        raw_status = (req.get("status") or "").lower()
+        access_type = req.get("access_type") or "temporary"
+        expires_at = req.get("expires_at")
+        approved_at = req.get("approved_at") or req.get("requested_at")
+
+        computed_status = raw_status
+        if raw_status == "active":
+            if expires_at:
+                try:
+                    exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                    if exp_dt.tzinfo is None:
+                        exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+                    if now >= exp_dt:
+                        computed_status = "expired"
+                    elif (exp_dt - now) <= timedelta(hours=2):
+                        computed_status = "expiring_soon"
+                except Exception:
+                    pass
+        elif raw_status in ("rejected", "cancelled"):
+            computed_status = "revoked"
+
+        # Apply filters
+        if status_filter != "all":
+            if status_filter == "active" and computed_status not in ("active", "expiring_soon"):
+                continue
+            elif status_filter == "expiring_soon" and computed_status != "expiring_soon":
+                continue
+            elif status_filter == "expired" and computed_status != "expired":
+                continue
+            elif status_filter == "revoked" and computed_status != "revoked":
+                continue
+
+        if type_filter != "all" and access_type.lower() != type_filter:
+            continue
+
+        if search_query:
+            if (search_query not in full_name.lower() and
+                search_query not in health_id.lower() and
+                search_query not in str(patient_id).lower()):
+                continue
+
+        # Prevent duplicate entries for same patient in the authorized list
+        if patient_id in seen_patients:
+            continue
+        seen_patients.add(patient_id)
+
+        granted_display = "—"
+        if approved_at:
+            try:
+                g_dt = datetime.fromisoformat(approved_at.replace("Z", "+00:00"))
+                granted_display = g_dt.strftime("%d %b %Y, %I:%M %p")
+            except Exception:
+                granted_display = str(approved_at)[:19]
+
+        expires_display = "Permanent (No Expiry)" if access_type == "permanent" else "N/A"
+        if expires_at:
+            try:
+                e_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                expires_display = e_dt.strftime("%d %b %Y, %I:%M %p")
+            except Exception:
+                expires_display = str(expires_at)[:19]
+
+        patient_list.append({
+            "patient_id": patient_id,
+            "patient_name": full_name,
+            "health_id": health_id,
+            "gender": p.get("gender") or "Not specified",
+            "access_type": access_type,
+            "access_id": req.get("id"),
+            "granted_at": approved_at,
+            "granted_display": granted_display,
+            "expires_at": expires_at,
+            "expires_display": expires_display,
+            "status": computed_status,
+            "can_view_records": computed_status in ("active", "expiring_soon")
+        })
+
+    total = len(patient_list)
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+    paginated = patient_list[(page - 1) * per_page : page * per_page]
+
+    return jsonify({
+        "success": True,
+        "patients": paginated,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages
+    }), 200
+
+
+@app.route("/doctor/access-audit/api/requests", methods=["GET", "POST"])
+def doctor_access_audit_requests():
+    """GET access requests or POST a new access request."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required"}), 401
+
+    doctor_id = session.get("doctor_id")
+
+    if request.method == "POST":
+        body = request.get_json(silent=True) or {}
+        patient_identifier = str(body.get("patient_id") or body.get("health_id") or "").strip()
+        access_type = str(body.get("access_type") or "temporary").strip().lower()
+        purpose = str(body.get("purpose") or "Clinical consultation and medical history review").strip()
+
+        if not patient_identifier:
+            return jsonify({"success": False, "error": "Patient Health ID or Patient ID is required."}), 400
+
+        if access_type not in ("temporary", "permanent", "one_time"):
+            access_type = "temporary"
+
+        try:
+            p_query = supabase_admin.table("patients").select("*")
+            if "-" in patient_identifier and len(patient_identifier) == 36:
+                p_res = p_query.eq("id", patient_identifier).execute()
+            else:
+                p_res = p_query.eq("health_id", patient_identifier).execute()
+
+            if not p_res.data:
+                return jsonify({"success": False, "error": f"No patient found matching '{patient_identifier}'."}), 404
+
+            patient = p_res.data[0]
+        except Exception as e:
+            print("Error finding patient for access request:", repr(e))
+            return jsonify({"success": False, "error": "Database error while looking up patient."}), 500
+
+        patient_id = patient["id"]
+
+        # Check existing pending request
+        try:
+            existing_res = (
+                supabase_admin
+                .table("access_requests")
+                .select("*")
+                .eq("doctor_id", doctor_id)
+                .eq("patient_id", patient_id)
+                .eq("status", "pending")
+                .execute()
+            )
+            if existing_res.data:
+                return jsonify({
+                    "success": False,
+                    "error": "An access request for this patient is already pending patient approval."
+                }), 400
+        except Exception as e:
+            print("Error checking existing requests:", repr(e))
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        new_req_data = {
+            "patient_id": patient_id,
+            "doctor_id": doctor_id,
+            "status": "pending",
+            "access_type": access_type,
+            "access_method": "approval",
+            "purpose": purpose,
+            "requested_at": now_iso
+        }
+
+        try:
+            insert_res = (
+                supabase_admin
+                .table("access_requests")
+                .insert(new_req_data)
+                .execute()
+            )
+            created_record = insert_res.data[0] if insert_res.data else new_req_data
+
+            # Log audit event
+            log_audit_event(
+                doctor_id=doctor_id,
+                action="PATIENT_ACCESS_REQUESTED",
+                patient_ids=[patient_id],
+                status="SUCCESS",
+                metadata={
+                    "patient_id": patient_id,
+                    "patient_name": patient.get("full_name"),
+                    "health_id": patient.get("health_id"),
+                    "access_type": access_type,
+                    "purpose": purpose
+                },
+                client_ip=request.remote_addr
+            )
+
+            return jsonify({
+                "success": True,
+                "message": "Access request successfully submitted. Awaiting patient approval.",
+                "request": created_record
+            }), 201
+
+        except Exception as e:
+            print("Error inserting access request:", repr(e))
+            return jsonify({"success": False, "error": "Failed to create access request in database."}), 500
+
+    # GET requests
+    search_query = request.args.get("q", "").strip().lower()
+    status_filter = request.args.get("status", "all").strip().lower()
+    page = max(1, int(request.args.get("page", 1)))
+    per_page = max(1, min(int(request.args.get("per_page", 10)), 50))
+
+    try:
+        res = (
+            supabase_admin
+            .table("access_requests")
+            .select("*")
+            .eq("doctor_id", doctor_id)
+            .order("requested_at", desc=True)
+            .execute()
+        )
+        records = res.data or []
+    except Exception as e:
+        print("Error querying access requests:", repr(e))
+        return jsonify({"success": False, "error": "Failed to load access requests."}), 500
+
+    patient_ids = list({r["patient_id"] for r in records if r.get("patient_id")})
+    patients_map = {}
+    if patient_ids:
+        try:
+            p_res = (
+                supabase_admin
+                .table("patients")
+                .select("id, full_name, health_id, gender")
+                .in_("id", patient_ids)
+                .execute()
+            )
+            for p in (p_res.data or []):
+                patients_map[p["id"]] = p
+        except Exception as e:
+            print("Error fetching patients map:", repr(e))
+
+    formatted_requests = []
+    for req in records:
+        p_id = req.get("patient_id")
+        p = patients_map.get(p_id, {})
+        p_name = p.get("full_name") or f"Patient {str(p_id)[:8]}"
+        h_id = p.get("health_id") or "N/A"
+        st = (req.get("status") or "pending").lower()
+
+        if status_filter != "all" and st != status_filter:
+            continue
+
+        if search_query:
+            if (search_query not in p_name.lower() and
+                search_query not in h_id.lower() and
+                search_query not in str(req.get("id")).lower() and
+                search_query not in str(p_id).lower()):
+                continue
+
+        req_at = req.get("requested_at")
+        req_display = req_at
+        if req_at:
+            try:
+                r_dt = datetime.fromisoformat(req_at.replace("Z", "+00:00"))
+                req_display = r_dt.strftime("%d %b %Y, %I:%M %p")
+            except Exception:
+                req_display = str(req_at)[:19]
+
+        formatted_requests.append({
+            "id": req.get("id"),
+            "patient_id": p_id,
+            "patient_name": p_name,
+            "health_id": h_id,
+            "access_type": req.get("access_type") or "temporary",
+            "status": st,
+            "requested_at": req_at,
+            "requested_display": req_display or "—",
+            "approved_at": req.get("approved_at"),
+            "expires_at": req.get("expires_at"),
+            "purpose": req.get("purpose") or "Clinical evaluation & treatment"
+        })
+
+    total = len(formatted_requests)
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+    paginated = formatted_requests[(page - 1) * per_page : page * per_page]
+
+    return jsonify({
+        "success": True,
+        "requests": paginated,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages
+    }), 200
+
+
+@app.route("/doctor/access-audit/api/requests/<request_id>/cancel", methods=["POST"])
+def doctor_cancel_access_request(request_id):
+    """Allows doctor to cancel a pending access request."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required"}), 401
+
+    doctor_id = session.get("doctor_id")
+
+    try:
+        res = (
+            supabase_admin
+            .table("access_requests")
+            .select("*")
+            .eq("id", request_id)
+            .eq("doctor_id", doctor_id)
+            .execute()
+        )
+        if not res.data:
+            return jsonify({"success": False, "error": "Access request not found or not owned by you."}), 404
+
+        req = res.data[0]
+        if req.get("status") != "pending":
+            return jsonify({
+                "success": False,
+                "error": f"Cannot cancel request with status '{req.get('status')}'. Only pending requests can be cancelled."
+            }), 400
+
+        supabase_admin.table("access_requests").update({"status": "cancelled"}).eq("id", request_id).execute()
+
+        log_audit_event(
+            doctor_id=doctor_id,
+            action="PATIENT_ACCESS_CANCELLED",
+            patient_ids=[req.get("patient_id")],
+            status="SUCCESS",
+            metadata={"request_id": request_id},
+            client_ip=request.remote_addr
+        )
+
+        return jsonify({"success": True, "message": "Access request cancelled successfully."}), 200
+
+    except Exception as e:
+        print("Error cancelling request:", repr(e))
+        return jsonify({"success": False, "error": "Failed to cancel access request."}), 500
+
+
+@app.route("/doctor/access-audit/api/consent/<request_id>", methods=["GET"])
+def doctor_access_consent_details(request_id):
+    """Retrieve verified consent parameters and scope for an access authorization."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required"}), 401
+
+    doctor_id = session.get("doctor_id")
+
+    try:
+        res = (
+            supabase_admin
+            .table("access_requests")
+            .select("*")
+            .eq("id", request_id)
+            .eq("doctor_id", doctor_id)
+            .execute()
+        )
+        if not res.data:
+            return jsonify({"success": False, "error": "Consent authorization record not found."}), 404
+
+        req = res.data[0]
+        patient_id = req.get("patient_id")
+        patient = {}
+        if patient_id:
+            try:
+                p_res = supabase_admin.table("patients").select("*").eq("id", patient_id).execute()
+                if p_res.data:
+                    patient = p_res.data[0]
+            except Exception:
+                pass
+
+        now = datetime.now(timezone.utc)
+        expires_at = req.get("expires_at")
+        is_expired = False
+        if expires_at:
+            try:
+                exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                if exp_dt.tzinfo is None:
+                    exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+                is_expired = (now >= exp_dt)
+            except Exception:
+                pass
+
+        consent = {
+            "request_id": req.get("id"),
+            "patient_id": patient_id,
+            "patient_name": patient.get("full_name") or "Authorized Patient",
+            "health_id": patient.get("health_id") or "N/A",
+            "gender": patient.get("gender") or "Not specified",
+            "blood_group": patient.get("blood_group") or "Not specified",
+            "access_type": req.get("access_type") or "temporary",
+            "status": "expired" if is_expired else req.get("status"),
+            "requested_at": req.get("requested_at"),
+            "approved_at": req.get("approved_at"),
+            "expires_at": expires_at,
+            "purpose": req.get("purpose") or "Clinical evaluation & longitudinal medical record review",
+            "authorized_scopes": [
+                {"name": "Medical History & Diagnoses", "status": "Granted"},
+                {"name": "Prescription & Medication Records", "status": "Granted"},
+                {"name": "Laboratory & Investigation Reports", "status": "Granted"},
+                {"name": "Health Timeline & Vitals Trends", "status": "Granted"}
+            ],
+            "consent_standard": "HIPAA / HL7 FHIR Consent Directive (Permit)",
+            "is_active": req.get("status") == "active" and not is_expired
+        }
+
+        return jsonify({"success": True, "consent": consent}), 200
+
+    except Exception as e:
+        print("Error retrieving consent details:", repr(e))
+        return jsonify({"success": False, "error": "Failed to load consent details."}), 500
+
+
+@app.route("/doctor/access-audit/api/logs", methods=["GET"])
+def doctor_access_audit_logs_api():
+    """Returns paginated, filterable audit log activities for the authenticated doctor."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required"}), 401
+
+    doctor_id = session.get("doctor_id")
+    action = request.args.get("action")
+    patient_id = request.args.get("patient_id")
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+    search = request.args.get("q")
+    page = max(1, int(request.args.get("page", 1)))
+    per_page = max(1, min(int(request.args.get("per_page", 15)), 50))
+
+    try:
+        data = query_doctor_audit_logs(
+            doctor_id=doctor_id,
+            action=action,
+            patient_id=patient_id,
+            start_date=start_date,
+            end_date=end_date,
+            search=search,
+            page=page,
+            per_page=per_page
+        )
+        return jsonify({"success": True, **data}), 200
+    except Exception as e:
+        print("Error retrieving audit logs API:", repr(e))
+        return jsonify({"success": False, "error": "Failed to retrieve audit log activities."}), 500
+
+
+@app.route("/doctor/access-audit/api/logs/<log_id>", methods=["GET"])
+def doctor_access_audit_log_detail(log_id):
+    """Retrieve detailed view of a single audit activity record."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required"}), 401
+
+    doctor_id = session.get("doctor_id")
+    log_entry = get_audit_log_by_id(log_id, doctor_id=doctor_id)
+    if not log_entry:
+        return jsonify({"success": False, "error": "Audit log entry not found or unauthorized."}), 404
+
+    return jsonify({"success": True, "log": log_entry}), 200
+
+
+@app.route("/doctor/access-audit/api/notifications", methods=["GET"])
+def doctor_access_audit_notifications():
+    """Retrieve access notifications for the authenticated doctor."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required"}), 401
+
+    doctor_id = session.get("doctor_id")
+    limit = max(1, min(int(request.args.get("limit", 20)), 50))
+
+    records = []
+    patients_map = {}
+
+    try:
+        req_res = (
+            supabase_admin
+            .table("access_requests")
+            .select("*")
+            .eq("doctor_id", doctor_id)
+            .order("requested_at", desc=True)
+            .execute()
+        )
+        records = req_res.data or []
+
+        patient_ids = list({r["patient_id"] for r in records if r.get("patient_id")})
+        if patient_ids:
+            try:
+                p_res = (
+                    supabase_admin
+                    .table("patients")
+                    .select("id, full_name, health_id")
+                    .in_("id", patient_ids)
+                    .execute()
+                )
+                for p in (p_res.data or []):
+                    patients_map[p["id"]] = p
+            except Exception:
+                pass
+    except Exception as e:
+        print("Note: Supabase query in access-audit notifications (offline or fallback):", repr(e))
+
+    try:
+        notifications_data = get_doctor_notifications(
+            doctor_id=doctor_id,
+            access_requests=records,
+            patients_map=patients_map,
+            limit=limit
+        )
+
+        return jsonify({"success": True, **notifications_data}), 200
+
+    except Exception as e:
+        print("Error generating notifications:", repr(e))
+        return jsonify({"success": False, "error": "Failed to load notifications."}), 500
+
+
+@app.route("/doctor/access-audit/api/notifications/<notification_id>/read", methods=["POST"])
+def doctor_access_audit_mark_notification_read(notification_id):
+    """Mark a notification or all notifications as read."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required"}), 401
+
+    doctor_id = session.get("doctor_id")
+
+    if notification_id == "all":
+        body = request.get_json(silent=True) or {}
+        ids = body.get("notification_ids", [])
+        if not ids:
+            try:
+                req_res = (
+                    supabase_admin
+                    .table("access_requests")
+                    .select("id, status")
+                    .eq("doctor_id", doctor_id)
+                    .execute()
+                )
+                records = req_res.data or []
+                notifs = get_doctor_notifications(doctor_id=doctor_id, access_requests=records, limit=100)
+                ids = [n["id"] for n in notifs.get("notifications", [])]
+            except Exception:
+                pass
+        mark_all_notifications_as_read(doctor_id, ids)
+    else:
+        mark_notification_as_read(doctor_id, notification_id)
+
+    return jsonify({"success": True, "message": "Notification read status updated."}), 200
+
+
+@app.route("/doctor/access-audit/api/search-patient", methods=["GET"])
+def doctor_access_search_patient():
+    """Search patients by Health ID or Name for access requests."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required"}), 401
+
+    q = request.args.get("q", "").strip()
+    if not q or len(q) < 2:
+        return jsonify({"success": True, "patients": []}), 200
+
+    try:
+        query = supabase_admin.table("patients").select("id, full_name, health_id, gender, date_of_birth")
+        if q.upper().startswith("OMC-"):
+            res = query.ilike("health_id", f"%{q}%").limit(8).execute()
+        else:
+            res = query.ilike("full_name", f"%{q}%").limit(8).execute()
+
+        patients = res.data or []
+        return jsonify({"success": True, "patients": patients}), 200
+    except Exception as e:
+        print("Error searching patient:", repr(e))
+        return jsonify({"success": False, "error": "Failed to search patient records."}), 500
+
 
 
 @app.route("/doctor/profile")
@@ -3040,6 +3787,18 @@ def doctor_patient_workspace(patient_id):
 
         if not access_requests:
 
+            try:
+                log_audit_event(
+                    doctor_id=doctor_id,
+                    action="UNAUTHORIZED_ACCESS_ATTEMPT",
+                    patient_ids=[patient_id],
+                    status="DENIED",
+                    metadata={"target": "patient_workspace", "reason": "No active consent"},
+                    client_ip=request.remote_addr
+                )
+            except Exception:
+                pass
+
             flash(
                 "You do not have active access to this patient's medical records.",
                 "error"
@@ -3112,6 +3871,18 @@ def doctor_patient_workspace(patient_id):
             return redirect(
                 url_for("doctor_my_patients")
             )
+
+        try:
+            log_audit_event(
+                doctor_id=doctor_id,
+                action="PATIENT_RECORD_VIEWED",
+                patient_ids=[patient_id],
+                status="SUCCESS",
+                metadata={"patient_id": patient_id, "view": "workspace"},
+                client_ip=request.remote_addr
+            )
+        except Exception:
+            pass
 
         # -------------------------------------------------
         # 4. GET PATIENT MEDICAL RECORDS

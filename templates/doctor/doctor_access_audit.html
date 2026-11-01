@@ -1,111 +1,593 @@
 {% extends "doctor_base.html" %}
 
-{% block title %}Access & Audit Log - OmniCare AI{% endblock %}
+{% block title %}Access & Audit Log - Doctor Portal | OmniCare AI{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/doctor_access_audit.css') }}">
+{% endblock %}
 
 {% block content %}
-<div class="doctor-dashboard" style="padding: 24px; max-width: 1200px; margin: 0 auto;">
-    <div class="dashboard-header" style="margin-bottom: 24px;">
-        <div>
-            <span class="dashboard-label" style="font-size: 11px; font-weight: 700; color: #087f79; text-transform: uppercase;">DOCTOR PORTAL</span>
-            <h1 style="margin: 6px 0; font-size: 26px; color: #142b4c;">Access &amp; Audit Log</h1>
-            <p style="color: #627694; margin: 0;">Immutable record of patient access requests, active authorizations, and clinical operations.</p>
+<div class="access-audit-container">
+
+    <!-- ============================================================
+         PAGE HEADER
+         ============================================================ -->
+    <header class="audit-header">
+        <div class="audit-header-left">
+            <span class="doctor-portal-pill">DOCTOR PORTAL</span>
+            <h1 class="audit-title">Access &amp; Audit Log</h1>
+            <p class="audit-subtitle">
+                Manage your patient access permissions, consent requests, and view a secure audit trail of your activities.
+            </p>
+        </div>
+
+        <div class="audit-header-right">
+            <!-- Patient / Record Search Field -->
+            <div class="header-search-wrapper">
+                <span class="header-search-icon">🔍</span>
+                <input 
+                    type="text" 
+                    id="headerSearchInput" 
+                    class="header-search-input" 
+                    placeholder="Search patients or logs..."
+                    aria-label="Search patients or logs"
+                >
+            </div>
+
+            <!-- Notifications Bell with Dropdown -->
+            <div class="notif-bell-container" id="notifBellContainer">
+                <button 
+                    type="button" 
+                    class="notif-bell-btn" 
+                    id="notifBellBtn" 
+                    title="Access Notifications" 
+                    aria-label="Access Notifications"
+                    aria-expanded="false"
+                    aria-haspopup="true"
+                >
+                    🔔
+                    <span class="notif-unread-badge" id="headerBellBadge" style="display: none;">0</span>
+                </button>
+
+                <!-- Notifications Dropdown Menu -->
+                <div class="notif-dropdown" id="notifDropdown" role="dialog" aria-modal="false" aria-label="Access Notifications Dropdown">
+                    <div class="notif-dropdown-header">
+                        <div class="notif-dropdown-title-group">
+                            <span class="notif-dropdown-icon">🔔</span>
+                            <h4 class="notif-dropdown-title">Access Notifications</h4>
+                            <span class="notif-count-tag" id="notifCountBadge">0</span>
+                        </div>
+                        <div class="notif-dropdown-actions">
+                            <button type="button" class="btn-mark-all-read" id="markAllNotifReadBtn" title="Mark all notifications as read">
+                                Mark all read
+                            </button>
+                            <button type="button" class="notif-dropdown-close-btn" id="closeNotifDropdownBtn" aria-label="Close notifications dropdown" title="Close">
+                                &times;
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="notif-scroll-area" id="notificationsScrollArea" role="region" aria-live="polite">
+                        <!-- Notifications populated dynamically via JS -->
+                    </div>
+
+                    <div class="notif-dropdown-footer">
+                        <button type="button" class="notif-refresh-btn" id="refreshNotifBtn" title="Refresh notifications list">
+                            ↻ Refresh Notifications
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Doctor Profile Badge -->
+            <div class="doctor-profile-card">
+                <div class="doctor-avatar">
+                    👨‍⚕️
+                </div>
+                <div class="doctor-meta">
+                    <span class="doctor-name">
+                        Dr. {{ doctor.full_name or session.doctor_name or "Doctor" }}
+                    </span>
+                    <span class="doctor-role">
+                        {{ doctor.specialization or "Medical Specialist" }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ============================================================
+         FOUR ACCESS OVERVIEW CARDS (ROW)
+         ============================================================ -->
+    <section class="overview-grid" aria-label="Access Overview Metrics">
+        <!-- 1. Total Access Requests -->
+        <div class="overview-card">
+            <div class="card-icon-box icon-blue">
+                📋
+            </div>
+            <div class="card-content">
+                <div class="card-title">Total Access Requests</div>
+                <div class="card-value" id="overviewTotalRequests">0</div>
+                <p class="card-subtitle">Requests submitted by you</p>
+            </div>
+        </div>
+
+        <!-- 2. Active Access -->
+        <div class="overview-card">
+            <div class="card-icon-box icon-green">
+                🛡️
+            </div>
+            <div class="card-content">
+                <div class="card-title">Active Access</div>
+                <div class="card-value" id="overviewActiveAccess">0</div>
+                <p class="card-subtitle">Currently authorized records</p>
+            </div>
+        </div>
+
+        <!-- 3. Pending Requests -->
+        <div class="overview-card">
+            <div class="card-icon-box icon-amber">
+                ⏱️
+            </div>
+            <div class="card-content">
+                <div class="card-title">Pending Requests</div>
+                <div class="card-value" id="overviewPendingRequests">0</div>
+                <p class="card-subtitle">Awaiting patient consent</p>
+            </div>
+        </div>
+
+        <!-- 4. Revoked / Expired -->
+        <div class="overview-card">
+            <div class="card-icon-box icon-red">
+                🚫
+            </div>
+            <div class="card-content">
+                <div class="card-title">Revoked / Expired</div>
+                <div class="card-value" id="overviewRevokedExpired">0</div>
+                <p class="card-subtitle">Invalidated authorizations</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         MAIN TWO-COLUMN WORKSPACE
+         ============================================================ -->
+    <div class="audit-layout-grid">
+
+        <!-- LEFT COLUMN: TABS AND DATA TABLES -->
+        <main class="tabs-main-card">
+            
+            <!-- TABS NAVIGATION BAR -->
+            <div class="tabs-navigation-bar">
+                <div class="nav-tabs-group" role="tablist">
+                    <button 
+                        type="button" 
+                        class="nav-tab-btn active" 
+                        data-tab="patients" 
+                        id="tabBtnPatients" 
+                        role="tab" 
+                        aria-selected="true"
+                    >
+                        <span>👥 My Patient Access</span>
+                        <span class="tab-badge" id="patientCountBadge">0</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        class="nav-tab-btn" 
+                        data-tab="requests" 
+                        id="tabBtnRequests" 
+                        role="tab" 
+                        aria-selected="false"
+                    >
+                        <span>📝 Access Requests</span>
+                        <span class="tab-badge" id="requestsCountBadge">0</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        class="nav-tab-btn" 
+                        data-tab="audit" 
+                        id="tabBtnAudit" 
+                        role="tab" 
+                        aria-selected="false"
+                    >
+                        <span>📜 Audit Activity Log</span>
+                        <span class="tab-badge" id="auditCountBadge">0</span>
+                    </button>
+                </div>
+
+                <!-- ACTION BUTTON: NEW REQUEST -->
+                <div class="tab-action-group">
+                    <button type="button" class="btn-primary-teal" id="openRequestAccessBtn">
+                        <span>+</span>
+                        <span>Request Patient Access</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ========================================================
+                 TAB 1: MY PATIENT ACCESS
+                 ======================================================== -->
+            <section class="tab-content-panel active" id="patientsTabPanel" role="tabpanel" aria-labelledby="tabBtnPatients">
+                
+                <!-- Table Controls / Filters -->
+                <div class="table-filter-bar">
+                    <div class="filter-controls-left">
+                        <select class="filter-select" id="patientsStatusFilter" aria-label="Filter by Status">
+                            <option value="all">All Statuses</option>
+                            <option value="active" selected>Active Access</option>
+                            <option value="expiring_soon">Expiring Soon</option>
+                            <option value="expired">Expired</option>
+                            <option value="revoked">Revoked</option>
+                        </select>
+
+                        <select class="filter-select" id="patientsTypeFilter" aria-label="Filter by Access Type">
+                            <option value="all">All Access Types</option>
+                            <option value="permanent">Permanent</option>
+                            <option value="temporary">Temporary</option>
+                            <option value="one_time">One-time</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-search-box">
+                        <span class="search-icon">🔍</span>
+                        <input 
+                            type="text" 
+                            id="patientsSearchInput" 
+                            placeholder="Filter patients..." 
+                            aria-label="Filter patients"
+                        >
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="patientsLoading" class="loading-state-wrapper" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Loading authorized patient access list...</p>
+                </div>
+
+                <!-- Error Message -->
+                <div id="patientsError" class="empty-data-state" style="display: none; color: #dc2626;"></div>
+
+                <!-- Table -->
+                <div class="table-responsive-wrapper">
+                    <table class="omnicare-table omnicare-table-fixed" id="patientsTable" aria-label="Authorized Patients Table">
+                        <thead>
+                            <tr>
+                                <th class="col-patient-id">Patient ID</th>
+                                <th class="col-patient-name">Patient Name</th>
+                                <th class="col-access-type">Access Type</th>
+                                <th class="col-granted-at">Granted At</th>
+                                <th class="col-expiry">Expiry</th>
+                                <th class="col-status">Status</th>
+                                <th class="col-actions" style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patientsTableBody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State -->
+                <div id="patientsEmpty" class="empty-data-state" style="display: none;">
+                    <div class="empty-state-icon">👥</div>
+                    <h3 class="empty-state-title">No Authorized Patients Found</h3>
+                    <p class="empty-state-desc">
+                        You currently do not have access permissions matching these filters. Click "Request Patient Access" to request consent for a patient's records.
+                    </p>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="pagination-footer">
+                    <span id="patientsPageInfo">Loading pages...</span>
+                    <div class="pagination-buttons">
+                        <button type="button" class="btn-page" id="patientsPrevBtn" disabled>← Previous</button>
+                        <button type="button" class="btn-page" id="patientsNextBtn" disabled>Next →</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================================
+                 TAB 2: ACCESS REQUESTS
+                 ======================================================== -->
+            <section class="tab-content-panel" id="requestsTabPanel" role="tabpanel" aria-labelledby="tabBtnRequests">
+                
+                <!-- Table Controls / Filters -->
+                <div class="table-filter-bar">
+                    <div class="filter-controls-left">
+                        <select class="filter-select" id="requestsStatusFilter" aria-label="Filter by Request Status">
+                            <option value="all">All Request Statuses</option>
+                            <option value="pending" selected>Pending Approval</option>
+                            <option value="active">Approved / Active</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="expired">Expired</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-search-box">
+                        <span class="search-icon">🔍</span>
+                        <input 
+                            type="text" 
+                            id="requestsSearchInput" 
+                            placeholder="Search requests..." 
+                            aria-label="Search requests"
+                        >
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="requestsLoading" class="loading-state-wrapper" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Loading your access requests...</p>
+                </div>
+
+                <!-- Error Message -->
+                <div id="requestsError" class="empty-data-state" style="display: none; color: #dc2626;"></div>
+
+                <!-- Table -->
+                <div class="table-responsive-wrapper">
+                    <table class="omnicare-table omnicare-table-fixed" id="requestsTable" aria-label="Access Requests Table">
+                        <thead>
+                            <tr>
+                                <th class="col-req-id">Request ID</th>
+                                <th class="col-req-name">Patient Name</th>
+                                <th class="col-req-health-id">Health ID</th>
+                                <th class="col-req-type">Access Type</th>
+                                <th class="col-req-requested-at">Requested At</th>
+                                <th class="col-req-status">Status</th>
+                                <th class="col-req-actions" style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requestsTableBody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State -->
+                <div id="requestsEmpty" class="empty-data-state" style="display: none;">
+                    <div class="empty-state-icon">📝</div>
+                    <h3 class="empty-state-title">No Access Requests Found</h3>
+                    <p class="empty-state-desc">
+                        No patient access requests match the selected criteria. Use the "Request Patient Access" button above to initiate a new request.
+                    </p>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="pagination-footer">
+                    <span id="requestsPageInfo">Loading pages...</span>
+                    <div class="pagination-buttons">
+                        <button type="button" class="btn-page" id="requestsPrevBtn" disabled>← Previous</button>
+                        <button type="button" class="btn-page" id="requestsNextBtn" disabled>Next →</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================================
+                 TAB 3: AUDIT ACTIVITY LOG
+                 ======================================================== -->
+            <section class="tab-content-panel" id="auditTabPanel" role="tabpanel" aria-labelledby="tabBtnAudit">
+                
+                <!-- Filter Controls Bar -->
+                <div class="table-filter-bar" style="align-items: flex-start;">
+                    <div class="filter-controls-left" style="gap: 8px;">
+                        <!-- Activity Filter Dropdown -->
+                        <select class="filter-select" id="auditActionFilter" style="max-width: 220px;" aria-label="Filter by Activity Type">
+                            <option value="">All Activity Types</option>
+                            <option value="DOCTOR_LOGIN">Doctor Login</option>
+                            <option value="PATIENT_RECORD_VIEWED">Patient Record Viewed</option>
+                            <option value="MEDICAL_HISTORY_VIEWED">Medical History Viewed</option>
+                            <option value="INVESTIGATION_REPORT_VIEWED">Investigation Report Viewed</option>
+                            <option value="PRESCRIPTION_CREATED">Prescription Created</option>
+                            <option value="MEDICAL_RECORD_DOWNLOADED">Medical Record Downloaded</option>
+                            <option value="PATIENT_ACCESS_REQUESTED">Patient Access Requested</option>
+                            <option value="PATIENT_ACCESS_GRANTED">Patient Access Granted</option>
+                            <option value="PATIENT_ACCESS_REVOKED">Patient Access Revoked</option>
+                            <option value="PATIENT_ACCESS_CANCELLED">Patient Access Cancelled</option>
+                            <option value="CLINICAL_COPILOT_QUERY">Clinical Copilot Query</option>
+                            <option value="COPILOT_BRIEFING_VIEWED">Clinical Briefing Viewed</option>
+                            <option value="GUEST_PATIENT_ACCESS">Guest Patient Record Access</option>
+                            <option value="UNAUTHORIZED_ACCESS_ATTEMPT">Unauthorized Access Attempt</option>
+                            <option value="FAILED_ACCESS_ATTEMPT">Failed Access Attempt</option>
+                        </select>
+
+                        <!-- Patient ID Filter -->
+                        <input 
+                            type="text" 
+                            id="auditPatientFilter" 
+                            class="filter-select" 
+                            placeholder="Patient ID filter..." 
+                            style="width: 150px;"
+                            aria-label="Filter by Patient ID"
+                        >
+
+                        <!-- Date Range Filters -->
+                        <div style="display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted);">
+                            <span>From</span>
+                            <input type="date" id="auditStartDate" class="filter-select" style="padding: 5px 8px; font-size: 11px;" aria-label="From Date">
+                            <span>To</span>
+                            <input type="date" id="auditEndDate" class="filter-select" style="padding: 5px 8px; font-size: 11px;" aria-label="To Date">
+                        </div>
+
+                        <!-- Reset Button -->
+                        <button type="button" class="btn-secondary" id="auditResetFiltersBtn" style="padding: 6px 10px; font-size: 12px;">
+                            Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div id="auditLoading" class="loading-state-wrapper" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Loading immutable doctor audit trail...</p>
+                </div>
+
+                <!-- Error Message -->
+                <div id="auditError" class="empty-data-state" style="display: none; color: #dc2626;"></div>
+
+                <!-- Table -->
+                <div class="table-responsive-wrapper">
+                    <table class="omnicare-table omnicare-table-fixed" id="auditTable" aria-label="Audit Activity Trail Table">
+                        <thead>
+                            <tr>
+                                <th class="col-audit-id">Log ID</th>
+                                <th class="col-audit-activity">Activity</th>
+                                <th class="col-audit-patients">Patient(s)</th>
+                                <th class="col-audit-details">Details</th>
+                                <th class="col-audit-timestamp">Timestamp</th>
+                                <th class="col-audit-result">Result</th>
+                                <th class="col-audit-actions" style="text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditTableBody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State -->
+                <div id="auditEmpty" class="empty-data-state" style="display: none;">
+                    <div class="empty-state-icon">📜</div>
+                    <h3 class="empty-state-title">No Audit Activities Found</h3>
+                    <p class="empty-state-desc">
+                        No clinical or access activities recorded matching the selected filters.
+                    </p>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="pagination-footer">
+                    <span id="auditPageInfo">Loading pages...</span>
+                    <div class="pagination-buttons">
+                        <button type="button" class="btn-page" id="auditPrevBtn" disabled>← Previous</button>
+                        <button type="button" class="btn-page" id="auditNextBtn" disabled>Next →</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+    </div>
+</div>
+
+<!-- ============================================================
+     MODAL 1: REQUEST PATIENT ACCESS MODAL
+     ============================================================ -->
+<div class="omnicare-modal-overlay" id="requestAccessModal" role="dialog" aria-modal="true" aria-labelledby="requestModalTitle">
+    <div class="omnicare-modal-box">
+        <div class="modal-header">
+            <h3 id="requestModalTitle">🛡️ Request Patient Access</h3>
+            <button type="button" class="modal-close-btn" onclick="window.OmniCareAudit.closeRequestModal()" aria-label="Close dialog">×</button>
+        </div>
+        <div class="modal-body">
+            <!-- Patient Search -->
+            <div class="form-group">
+                <label class="form-label" for="reqPatientSearchInput">Search Patient</label>
+                <input 
+                    type="text" 
+                    id="reqPatientSearchInput" 
+                    class="form-input" 
+                    placeholder="Enter Health ID (e.g. OMC-P5C4F) or Full Name..."
+                    autocomplete="off"
+                >
+                <div class="form-hint">Type at least 2 characters to search the patient registry.</div>
+                <div id="modalSearchResults"></div>
+            </div>
+
+            <!-- Selected Patient Card -->
+            <div class="selected-patient-preview" id="selectedPatientPreview" style="display: none;">
+                <div>
+                    <div style="font-weight: 700; color: var(--primary-teal); font-size: 14px;" id="prevPatientName">Selected Patient</div>
+                    <div style="font-size: 11px; color: var(--text-muted);" id="prevPatientId">Health ID</div>
+                </div>
+                <span class="status-pill active">✓ Selected</span>
+            </div>
+
+            <!-- Access Type Selection -->
+            <div class="form-group" style="margin-top: 16px;">
+                <label class="form-label" for="reqAccessTypeSelect">Access Type</label>
+                <select class="form-select" id="reqAccessTypeSelect">
+                    <option value="temporary" selected>Temporary Access (Time-Limited Consultation)</option>
+                    <option value="one_time">One-Time Consultation Access</option>
+                    <option value="permanent">Permanent Primary Care Access</option>
+                </select>
+            </div>
+
+            <!-- Duration Selection -->
+            <div class="form-group" id="reqDurationGroup">
+                <label class="form-label" for="reqDurationSelect">Requested Duration</label>
+                <select class="form-select" id="reqDurationSelect">
+                    <option value="4" selected>4 Hours (Standard Examination)</option>
+                    <option value="24">24 Hours (In-Patient Consultation)</option>
+                    <option value="168">7 Days (Diagnostic Evaluation)</option>
+                    <option value="720">30 Days (Ongoing Treatment Course)</option>
+                </select>
+            </div>
+
+            <!-- Clinical Purpose -->
+            <div class="form-group">
+                <label class="form-label" for="reqPurposeInput">Purpose of Access</label>
+                <textarea 
+                    id="reqPurposeInput" 
+                    class="form-textarea" 
+                    rows="3" 
+                    placeholder="Provide specific medical reason for requesting patient records..."
+                >Clinical consultation and medical history review</textarea>
+                <div class="form-hint">Patients will review this explanation prior to approving or denying consent.</div>
+            </div>
+
+            <div class="consent-notice-box">
+                <strong>HIPAA / GDPR Compliance:</strong> Submitting this request sends an encrypted authorization prompt to the patient. A doctor cannot authorize their own access requests. Once authorized, the access window will commence immediately.
+            </div>
+
+            <!-- Modal Error Box -->
+            <div id="requestModalError" style="display: none; margin-top: 12px; color: #dc2626; font-size: 12px; font-weight: 600;"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-secondary" onclick="window.OmniCareAudit.closeRequestModal()">Cancel</button>
+            <button type="button" class="btn-primary-teal" id="submitRequestBtn">Submit Access Request</button>
         </div>
     </div>
-
-    <!-- RECENT ACCESS PERMISSIONS -->
-    <section style="background: #fff; border: 1px solid #dce6f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-        <h2 style="font-size: 18px; color: #142b4c; margin: 0 0 16px;">🛡️ Patient Access Requests & Consent Grants</h2>
-        {% if access_records and access_records|length > 0 %}
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-                <thead>
-                    <tr style="border-bottom: 2px solid #edf1f5; color: #627694;">
-                        <th style="padding: 10px 8px;">Request ID</th>
-                        <th style="padding: 10px 8px;">Patient ID</th>
-                        <th style="padding: 10px 8px;">Status</th>
-                        <th style="padding: 10px 8px;">Access Type</th>
-                        <th style="padding: 10px 8px;">Requested At</th>
-                        <th style="padding: 10px 8px;">Expires At</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for req in access_records %}
-                    <tr style="border-bottom: 1px solid #edf1f5;">
-                        <td style="padding: 10px 8px; font-family: monospace;">{{ req.id[:8] }}...</td>
-                        <td style="padding: 10px 8px; font-family: monospace;">{{ req.patient_id[:8] }}...</td>
-                        <td style="padding: 10px 8px;">
-                            {% if req.status == 'active' %}
-                                <span style="background: #e6f9f0; color: #13834f; padding: 3px 8px; border-radius: 20px; font-weight: 700;">Active</span>
-                            {% elif req.status == 'revoked' %}
-                                <span style="background: #fff4f4; color: #d52d36; padding: 3px 8px; border-radius: 20px; font-weight: 700;">Revoked</span>
-                            {% elif req.status == 'expired' %}
-                                <span style="background: #f1f3f7; color: #627694; padding: 3px 8px; border-radius: 20px; font-weight: 700;">Expired</span>
-                            {% else %}
-                                <span style="background: #fff9eb; color: #a85b00; padding: 3px 8px; border-radius: 20px; font-weight: 700;">{{ req.status|capitalize }}</span>
-                            {% endif %}
-                        </td>
-                        <td style="padding: 10px 8px;">{{ req.access_type or 'temporary' }}</td>
-                        <td style="padding: 10px 8px; color: #627694;">{{ req.requested_at or '—' }}</td>
-                        <td style="padding: 10px 8px; color: #627694;">{{ req.expires_at or 'N/A' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <p style="color: #627694; font-size: 13px; margin: 0;">No access requests recorded yet.</p>
-        {% endif %}
-    </section>
-
-    <!-- CLINICAL COPILOT AUDIT TRAIL -->
-    <section style="background: #fff; border: 1px solid #dce6f0; border-radius: 12px; padding: 20px;">
-        <h2 style="font-size: 18px; color: #142b4c; margin: 0 0 16px;">📜 Clinical Activity & Copilot Query Audit Trail</h2>
-        {% if audit_logs and audit_logs|length > 0 %}
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-                <thead>
-                    <tr style="border-bottom: 2px solid #edf1f5; color: #627694;">
-                        <th style="padding: 10px 8px;">Timestamp (UTC)</th>
-                        <th style="padding: 10px 8px;">Action</th>
-                        <th style="padding: 10px 8px;">Status</th>
-                        <th style="padding: 10px 8px;">Patients In Scope</th>
-                        <th style="padding: 10px 8px;">Details / Metadata</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for log in audit_logs %}
-                    <tr style="border-bottom: 1px solid #edf1f5;">
-                        <td style="padding: 10px 8px; color: #627694;">{{ log.timestamp }}</td>
-                        <td style="padding: 10px 8px; font-weight: 700; color: #142b4c;">{{ log.action }}</td>
-                        <td style="padding: 10px 8px;">
-                            <span style="background: {% if log.status == 'SUCCESS' %}#e6f9f0; color: #13834f{% elif log.status == 'DENIED' %}#fff4f4; color: #d52d36{% else %}#f1f3f7; color: #627694{% endif %}; padding: 2px 7px; border-radius: 12px; font-weight: 700; font-size: 10px;">
-                                {{ log.status }}
-                            </span>
-                        </td>
-                        <td style="padding: 10px 8px;">{{ log.patient_count }} patient(s)</td>
-                        <td style="padding: 10px 8px; color: #627694; font-family: monospace; font-size: 11px;">
-                            {% if log.metadata.query %}
-                                Query: "{{ log.metadata.query }}"
-                            {% elif log.metadata.alert_id %}
-                                Alert {{ log.metadata.alert_id }} reviewed
-                            {% elif log.metadata.abnormal_count is defined %}
-                                Abnormal: {{ log.metadata.abnormal_count }}, Overdue: {{ log.metadata.followup_count }}
-                            {% else %}
-                                {{ log.metadata|tojson }}
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <div class="empty-patients" style="text-align: center; padding: 40px 20px;">
-            <div class="empty-icon" style="font-size: 36px; margin-bottom: 12px;">🔐</div>
-            <h3 style="margin: 0 0 8px; color: #142b4c;">No clinical copilot actions logged yet</h3>
-            <p style="color: #627694; margin: 0;">When you view clinical briefings or query authorized records, audit logs will be permanently recorded here.</p>
-        </div>
-        {% endif %}
-    </section>
 </div>
+
+<!-- ============================================================
+     MODAL 2: CONSENT DETAILS MODAL
+     ============================================================ -->
+<div class="omnicare-modal-overlay" id="consentDetailModal" role="dialog" aria-modal="true" aria-labelledby="consentModalTitle">
+    <div class="omnicare-modal-box">
+        <div class="modal-header">
+            <h3 id="consentModalTitle">🔒 Verified Patient Consent Record</h3>
+            <button type="button" class="modal-close-btn" onclick="window.OmniCareAudit.closeConsentModal()" aria-label="Close dialog">×</button>
+        </div>
+        <div class="modal-body" id="consentModalBody">
+            <!-- Populated via JS -->
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-secondary" onclick="window.OmniCareAudit.closeConsentModal()">Close</button>
+            <a href="#" class="btn-primary-teal" id="consentOpenWorkspaceBtn" style="display: none;">
+                Open Patient Workspace →
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     MODAL 3: AUDIT ACTIVITY INSPECTION MODAL
+     ============================================================ -->
+<div class="omnicare-modal-overlay" id="auditDetailModal" role="dialog" aria-modal="true" aria-labelledby="auditModalTitle">
+    <div class="omnicare-modal-box">
+        <div class="modal-header">
+            <h3 id="auditModalTitle">📜 Audit Activity Record</h3>
+            <button type="button" class="modal-close-btn" onclick="window.OmniCareAudit.closeAuditModal()" aria-label="Close dialog">×</button>
+        </div>
+        <div class="modal-body" id="auditModalBody">
+            <!-- Populated via JS -->
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-secondary" onclick="window.OmniCareAudit.closeAuditModal()">Dismiss</button>
+        </div>
+    </div>
+</div>
+
+<!-- JAVASCRIPT CONTROLLER -->
+<script src="{{ url_for('static', filename='js/doctor_access_audit.js') }}"></script>
 {% endblock %}
