@@ -3,7 +3,7 @@
 
 <link rel="stylesheet"
       href="{{ url_for('static', filename='css/doctor_patient_access.css') }}">
-
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 
 <div class="patient-access-page">
@@ -321,33 +321,104 @@
 </div>
 
 
+
 <script>
+let html5QrCode = null;
+let scannerRunning = false;
 
-function startQRScanner() {
+async function startQRScanner() {
+    const container = document.getElementById("qrScannerContainer");
 
-    const scanner = document.getElementById(
-        "qrScannerContainer"
-    );
+    container.style.display = "block";
 
-    scanner.style.display = "block";
-
-    scanner.scrollIntoView({
+    container.scrollIntoView({
         behavior: "smooth"
     });
 
+    if (typeof Html5Qrcode === "undefined") {
+        alert("QR scanner library failed to load. Please refresh the page.");
+        return;
+    }
+
+    if (scannerRunning) return;
+
+    html5QrCode = new Html5Qrcode("qr-reader");
+
+    try {
+        await html5QrCode.start(
+            { facingMode: "environment" },
+            {
+                fps: 10,
+                qrbox: { width: 250, height: 250 }
+            },
+            async (decodedText) => {
+                if (!scannerRunning && html5QrCode) return;
+
+                scannerRunning = false;
+
+                try {
+                    await html5QrCode.stop();
+                    await html5QrCode.clear();
+                } catch (error) {
+                    console.error("Scanner stop error:", error);
+                }
+
+                container.style.display = "none";
+
+                let healthId = decodedText.trim();
+
+                // Support QR codes containing a URL
+                try {
+                    const url = new URL(decodedText);
+                    healthId =
+                        url.searchParams.get("health_id") ||
+                        url.searchParams.get("patient_id") ||
+                        decodedText.trim();
+                } catch (error) {
+                    // QR contains a plain Health ID
+                }
+
+                // Search using the existing patient search route
+                window.location.href =
+                    "{{ url_for('doctor_patient_access') }}" +
+                    "?health_id=" + encodeURIComponent(healthId);
+            },
+            (errorMessage) => {
+                // Ignore normal scanning errors
+            }
+        );
+
+        scannerRunning = true;
+
+    } catch (error) {
+        console.error("Camera error:", error);
+
+        alert(
+            "Unable to access camera. Please allow camera permission " +
+            "and try again."
+        );
+
+        container.style.display = "none";
+    }
 }
 
+async function closeQRScanner() {
+    const container = document.getElementById("qrScannerContainer");
 
-function closeQRScanner() {
+    if (html5QrCode && scannerRunning) {
+        try {
+            await html5QrCode.stop();
+            await html5QrCode.clear();
+        } catch (error) {
+            console.error("Scanner close error:", error);
+        }
+    }
 
-    const scanner = document.getElementById(
-        "qrScannerContainer"
-    );
-
-    scanner.style.display = "none";
-
+    scannerRunning = false;
+    html5QrCode = null;
+    container.style.display = "none";
 }
-
 </script>
+
 
 {% endblock %}
