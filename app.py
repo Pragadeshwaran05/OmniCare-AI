@@ -4055,10 +4055,10 @@ def doctor_request_access(patient_id):
         )
     )
 
+
 @app.route("/doctor/patient-access", methods=["GET"])
 def doctor_patient_access():
 
-    # Doctor must be logged in
     if "doctor_id" not in session:
         flash("Please login as a doctor.", "error")
         return redirect(url_for("doctor_login"))
@@ -4068,7 +4068,6 @@ def doctor_patient_access():
     patient = None
     error = None
 
-    # Search only when Health ID is entered
     if health_id:
 
         try:
@@ -4077,18 +4076,18 @@ def doctor_patient_access():
                 .table("patients")
                 .select("*")
                 .eq("health_id", health_id)
-                .single()
+                .maybe_single()
                 .execute()
             )
 
             patient = response.data
 
             if not patient:
-                error = "Patient not found."
+                error = "No patient found with this Health ID."
 
         except Exception as e:
             print("PATIENT ACCESS SEARCH ERROR:", repr(e))
-            error = "Unable to search for the patient."
+            error = "Patient search failed. Please try again."
 
     return render_template(
         "doctor/patient_access.html",
