@@ -319,6 +319,44 @@ class DoctorProfileTestSuite(unittest.TestCase):
         self.assertEqual(res_mismatch.status_code, 400)
         self.assertIn("do not match", res_mismatch.get_json()["error"])
 
+    # ------------------------------------------------------------
+    # 9. MOBILE RESPONSIVE CSS & OVERFLOW PREVENTION
+    # ------------------------------------------------------------
+    def test_mobile_responsive_css_requirements(self):
+        """Verifies Doctor Profile CSS meets all mobile responsiveness requirements."""
+        css_path = os.path.join(PROJECT_ROOT, "static", "css", "doctor_profile.css")
+        self.assertTrue(os.path.exists(css_path))
+        with open(css_path, "r", encoding="utf-8") as f:
+            css = f.read()
+
+        # 1. Box sizing and max-width 100%
+        self.assertIn("box-sizing: border-box;", css)
+        self.assertIn("max-width: 100%;", css)
+        self.assertIn("width: 100%;", css)
+
+        # 2. Main profile card container and overflow handling
+        self.assertIn(".doctor-profile-card", css)
+        self.assertIn("flex-direction: column;", css)
+
+        # 3. Word wrapping on doctor name, email, reg no, addresses
+        self.assertIn("overflow-wrap: break-word;", css)
+        self.assertIn("word-break: break-word;", css)
+        self.assertIn("overflow-wrap: anywhere;", css)
+
+        # 4. Edit profile button full width on mobile
+        self.assertIn("#btnOpenEditProfileModal", css)
+
+        # 5. Media queries for <= 700px and <= 380px (320px, 360px, 375px)
+        self.assertIn("@media (max-width: 700px)", css)
+        self.assertIn("@media (max-width: 380px)", css)
+
+        # 6. Base layout overflow-x protection in doctor_base.html
+        base_html_path = os.path.join(PROJECT_ROOT, "templates", "doctor_base.html")
+        with open(base_html_path, "r", encoding="utf-8") as f:
+            base_html = f.read()
+        self.assertIn("overflow-x: hidden;", base_html)
+        self.assertIn("max-width: 100%;", base_html)
+
 
 if __name__ == "__main__":
     unittest.main()
