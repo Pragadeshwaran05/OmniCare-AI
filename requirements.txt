@@ -4,3 +4,4 @@ python-dotenv
 supabase
 google-genai
 qrcode[pil]
+reportlab>=4.0,<5
