@@ -66,10 +66,15 @@
                                        or 'Patient' }}
                                 </h3>
 
-                                <p>
-                                    Patient ID:
-                                    <strong>{{ patient.get('id', 'Not available') }}</strong>
-                                </p>
+                               <p>
+    Health ID:
+    <strong style="color: #245776;">
+        {{ patient.get('health_id_display')
+           or patient.get('health_id')
+           or patient.get('healthid')
+           or 'Not Available' }}
+    </strong>
+</p>
                             </div>
 
                             <span class="access-badge permanent">

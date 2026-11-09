@@ -6681,6 +6681,11 @@ def doctor_shared_medical_records():
             patient = patient_rows[0]
 
             patient["patient_id"] = patient.get("id")
+            patient["health_id_display"] = (
+    patient.get("health_id")
+    or patient.get("healthid")
+    or "Not Available"
+)
             patient["access_id"] = access.get("id")
             patient["access_type"] = "permanent"
             patient["access_status"] = "active"
