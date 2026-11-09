@@ -479,7 +479,7 @@
                 <a
                     href="{{ url_for('doctor_consultations') }}"
                     class="doctor-sidebar-link
-                    {% if request.endpoint == 'doctor_consultations' %}
+                    {% if request.endpoint in ['doctor_consultations', 'doctor_consultations_prescriptions'] %}
                     active
                     {% endif %}"
                 >

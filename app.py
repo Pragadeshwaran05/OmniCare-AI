@@ -2493,11 +2493,741 @@ def doctor_clinical_copilot_alert_review():
         }), 500
 
 
-@app.route("/doctor/consultations")
+# ============================================================
+# DOCTOR CONSULTATIONS & PRESCRIPTIONS MODULE
+# ============================================================
+
+def get_authorized_patients_for_doctor(doctor_id):
+    """Retrieve list of all patients for whom the doctor has active, non-expired access."""
+    if not doctor_id:
+        return []
+
+    try:
+        access_res = (
+            supabase_admin
+            .table("access_requests")
+            .select("*")
+            .eq("doctor_id", doctor_id)
+            .eq("status", "active")
+            .execute()
+        )
+        access_records = access_res.data or []
+    except Exception as e:
+        print("[DoctorConsultations] access_requests fetch error:", repr(e))
+        access_records = []
+
+    authorized_patients = []
+    seen_patient_ids = set()
+    now_utc = datetime.now(timezone.utc)
+
+    for acc in access_records:
+        pid = acc.get("patient_id")
+        if not pid or pid in seen_patient_ids:
+            continue
+
+        # Check expiration
+        expires_at = acc.get("expires_at")
+        access_type = acc.get("access_type") or "temporary"
+        if expires_at and access_type != "permanent":
+            try:
+                exp_dt = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                if now_utc >= exp_dt:
+                    try:
+                        supabase_admin.table("access_requests").update({"status": "expired"}).eq("id", acc["id"]).execute()
+                    except Exception:
+                        pass
+                    continue
+            except Exception:
+                pass
+
+        # Fetch patient profile
+        try:
+            p_res = supabase_admin.table("patients").select("*").eq("id", pid).limit(1).execute()
+            p_data = p_res.data or []
+            if p_data:
+                patient = dict(p_data[0])
+                patient["patient_id"] = patient.get("id")
+                patient["access_id"] = acc.get("id")
+                patient["access_type"] = access_type
+                patient["access_status"] = "active"
+                patient["approved_at"] = acc.get("approved_at") or acc.get("created_at")
+                patient["expires_at"] = expires_at
+                patient["is_permanent"] = (access_type == "permanent") or not expires_at
+                authorized_patients.append(patient)
+                seen_patient_ids.add(pid)
+        except Exception as p_err:
+            print("[DoctorConsultations] patient fetch error:", repr(p_err))
+
+    return authorized_patients
+
+
+def verify_doctor_patient_authorization(doctor_id, patient_id):
+    """Strict backend verification that doctor_id has active access to patient_id."""
+    if not doctor_id or not patient_id:
+        return False, None
+    patients = get_authorized_patients_for_doctor(doctor_id)
+    for p in patients:
+        if str(p.get("id")) == str(patient_id) or str(p.get("patient_id")) == str(patient_id):
+            return True, p
+    return False, None
+
+
+def get_patient_document_history(patient_id):
+    """
+    Retrieve all medical documents belonging to patient_id.
+    Includes:
+    1. Patient-uploaded records
+    2. Doctor-uploaded records
+    3. Doctor-created consultation notes
+    4. Doctor-generated prescriptions
+    """
+    if not patient_id:
+        return []
+
+    try:
+        res = (
+            supabase_admin
+            .table("medical_records")
+            .select("*")
+            .eq("patient_id", patient_id)
+            .order("uploaded_at", desc=True)
+            .execute()
+        )
+        records = res.data or []
+    except Exception:
+        try:
+            res = (
+                supabase_admin
+                .table("medical_records")
+                .select("*")
+                .eq("patient_id", patient_id)
+                .execute()
+            )
+            records = res.data or []
+        except Exception as e:
+            print("[DoctorConsultations] Error fetching records:", repr(e))
+            records = []
+
+    formatted = []
+    for r in records:
+        rec = dict(r)
+        doc_name = rec.get("doctor_name")
+        hosp_name = rec.get("hospital_name")
+        rec_type = (rec.get("record_type") or "other").lower()
+
+        if doc_name:
+            if hosp_name:
+                uploader = f"Dr. {doc_name} ({hosp_name})"
+            else:
+                uploader = f"Dr. {doc_name}"
+        elif rec.get("doctor_id"):
+            uploader = "Attending Physician"
+        elif rec.get("uploaded_by") and str(rec.get("uploaded_by")).lower() == "doctor":
+            uploader = "Doctor"
+        else:
+            uploader = "Patient"
+
+        rec["uploader_label"] = uploader
+
+        if not rec.get("file_url") and rec.get("id"):
+            try:
+                rec["file_url"] = url_for("doctor_view_medical_record", patient_id=patient_id, record_id=rec["id"])
+            except Exception:
+                rec["file_url"] = f"/doctor/patient-record/{patient_id}/{rec['id']}"
+
+        display_date = rec.get("document_date") or rec.get("uploaded_at") or rec.get("created_at") or "Recent"
+        if display_date and len(str(display_date)) >= 10:
+            rec["display_date"] = str(display_date)[:10]
+        else:
+            rec["display_date"] = display_date
+
+        formatted.append(rec)
+
+    return formatted
+
+
+def compute_document_summary_counts(records):
+    """Compute category counts from records list."""
+    counts = {
+        "consultations": 0,
+        "prescriptions": 0,
+        "lab_reports": 0,
+        "imaging": 0,
+        "other": 0,
+        "total": len(records)
+    }
+    for r in records:
+        t = (r.get("record_type") or "other").lower()
+        if t == "consultation":
+            counts["consultations"] += 1
+        elif t == "prescription":
+            counts["prescriptions"] += 1
+        elif t in ["lab_report", "lab", "blood_test", "pathology"]:
+            counts["lab_reports"] += 1
+        elif t in ["scan_imaging", "imaging", "xray", "ct_scan", "mri", "ultrasound", "scan"]:
+            counts["imaging"] += 1
+        else:
+            counts["other"] += 1
+    return counts
+
+
+@app.route("/doctor/consultations", endpoint="doctor_consultations")
+@app.route("/doctor/consultations-prescriptions", endpoint="doctor_consultations_prescriptions")
 def doctor_consultations():
     if "doctor_id" not in session:
         return redirect(url_for("doctor_login"))
-    return render_template("doctor/doctor_consultations.html")
+
+    doctor_id = session.get("doctor_id")
+
+    # 1. Fetch doctor profile
+    doctor = {}
+    try:
+        doctor = get_doctor_profile(doctor_id, supabase_admin, session) or {}
+    except Exception as e:
+        print("[DoctorConsultations] Doctor profile fetch notice:", repr(e))
+
+    if not doctor:
+        doctor = {
+            "id": doctor_id,
+            "full_name": session.get("doctor_name", "Doctor"),
+            "specialization": "Medical Specialist",
+            "medical_registration_number": "REG-DOC",
+            "hospital_name": "OmniCare Partner Hospital",
+            "qualification": "MBBS, MD",
+            "email": session.get("doctor_email", "")
+        }
+
+    # 2. Fetch authorized patients
+    authorized_patients = get_authorized_patients_for_doctor(doctor_id)
+
+    # 3. Check requested patient
+    requested_pid = request.args.get("patient_id")
+    selected_patient = None
+    records = []
+    doc_summary = {
+        "consultations": 0,
+        "prescriptions": 0,
+        "lab_reports": 0,
+        "imaging": 0,
+        "other": 0,
+        "total": 0
+    }
+    recent_prescriptions = []
+    recent_consultations = []
+
+    if requested_pid:
+        for p in authorized_patients:
+            if str(p.get("id")) == str(requested_pid) or str(p.get("patient_id")) == str(requested_pid):
+                selected_patient = p
+                break
+
+        if not selected_patient:
+            flash("Unauthorized access: You do not have active clinical authorization for this patient.", "error")
+        else:
+            pid = selected_patient.get("id") or selected_patient.get("patient_id")
+            records = get_patient_document_history(pid)
+            doc_summary = compute_document_summary_counts(records)
+            recent_prescriptions = [r for r in records if (r.get("record_type") or "").lower() == "prescription"][:6]
+            recent_consultations = [r for r in records if (r.get("record_type") or "").lower() == "consultation"][:6]
+    elif authorized_patients:
+        selected_patient = authorized_patients[0]
+        pid = selected_patient.get("id") or selected_patient.get("patient_id")
+        records = get_patient_document_history(pid)
+        doc_summary = compute_document_summary_counts(records)
+        recent_prescriptions = [r for r in records if (r.get("record_type") or "").lower() == "prescription"][:6]
+        recent_consultations = [r for r in records if (r.get("record_type") or "").lower() == "consultation"][:6]
+
+    today_date = datetime.now(timezone.utc).date().isoformat()
+    current_time = datetime.now(timezone.utc).strftime("%H:%M")
+
+    return render_template(
+        "doctor/doctor_consultations.html",
+        doctor=doctor,
+        authorized_patients=authorized_patients,
+        selected_patient=selected_patient,
+        records=records,
+        doc_summary=doc_summary,
+        recent_prescriptions=recent_prescriptions,
+        recent_consultations=recent_consultations,
+        today_date=today_date,
+        current_time=current_time
+    )
+
+
+@app.route("/doctor/consultations/api/patients", methods=["GET"])
+def doctor_consultations_api_patients():
+    """Returns JSON list of authorized patients for the logged-in doctor."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required."}), 401
+
+    doctor_id = session.get("doctor_id")
+    patients = get_authorized_patients_for_doctor(doctor_id)
+    return jsonify({
+        "success": True,
+        "patients": patients,
+        "count": len(patients)
+    })
+
+
+@app.route("/doctor/consultations/api/patient-summary/<patient_id>", methods=["GET"])
+def doctor_consultations_api_patient_summary(patient_id):
+    """Returns complete JSON summary of the selected patient including counts and records."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required."}), 401
+
+    doctor_id = session.get("doctor_id")
+    is_auth, patient = verify_doctor_patient_authorization(doctor_id, patient_id)
+    if not is_auth:
+        return jsonify({"success": False, "error": "Unauthorized: No active clinical access to this patient."}), 403
+
+    records = get_patient_document_history(patient_id)
+    counts = compute_document_summary_counts(records)
+    recent_prescriptions = [r for r in records if (r.get("record_type") or "").lower() == "prescription"][:6]
+    recent_consultations = [r for r in records if (r.get("record_type") or "").lower() == "consultation"][:6]
+
+    doctor = get_doctor_profile(doctor_id, supabase_admin, session) or {}
+
+    return jsonify({
+        "success": True,
+        "patient": patient,
+        "summary": counts,
+        "records": records,
+        "recent_prescriptions": recent_prescriptions,
+        "recent_consultations": recent_consultations,
+        "doctor": doctor
+    })
+
+
+@app.route("/doctor/consultations/<patient_id>/create-consultation", methods=["POST"])
+def doctor_consultations_create_consultation(patient_id):
+    """Create consultation note with vitals, clinical impression, and ReportLab PDF."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required."}), 401
+
+    doctor_id = session.get("doctor_id")
+    is_auth, patient_data = verify_doctor_patient_authorization(doctor_id, patient_id)
+    if not is_auth:
+        return jsonify({"success": False, "error": "Unauthorized: No active clinical access to this patient."}), 403
+
+    doctor_data = get_doctor_profile(doctor_id, supabase_admin, session) or {}
+
+    data = request.get_json(silent=True) or request.form.to_dict()
+    consultation_type = data.get("consultation_type", "General Consultation").strip()
+    chief_complaint = data.get("chief_complaint", "").strip()
+    hpi = data.get("hpi", "").strip()
+    vitals = data.get("vitals") if isinstance(data.get("vitals"), dict) else {}
+    if not vitals:
+        vitals = {
+            "bp": data.get("vital_bp", "").strip() or data.get("vitals_bp", "").strip(),
+            "pulse": data.get("vital_pulse", "").strip() or data.get("vitals_pulse", "").strip(),
+            "temperature": data.get("vital_temp", "").strip() or data.get("vitals_temperature", "").strip(),
+            "respiratory_rate": data.get("vital_rr", "").strip() or data.get("vitals_rr", "").strip(),
+            "oxygen_saturation": data.get("vital_spo2", "").strip() or data.get("vitals_spo2", "").strip(),
+            "weight": data.get("vital_weight", "").strip() or data.get("vitals_weight", "").strip(),
+            "height": data.get("vital_height", "").strip() or data.get("vitals_height", "").strip(),
+            "bmi": data.get("vital_bmi", "").strip() or data.get("vitals_bmi", "").strip()
+        }
+    diagnosis_primary = data.get("diagnosis_primary", "").strip()
+    diagnosis_secondary = data.get("diagnosis_secondary", "").strip()
+    treatment_plan = data.get("treatment_plan", "").strip()
+    clinical_notes = data.get("clinical_notes", "").strip()
+    consultation_time = data.get("consultation_time", "").strip() or data.get("time", "").strip()
+    findings = data.get("findings", "").strip()
+    recommendations = data.get("recommendations", "").strip()
+    follow_up = data.get("follow_up", "").strip()
+    document_date = data.get("document_date", "").strip() or datetime.now(timezone.utc).date().isoformat()
+    is_draft = str(data.get("is_draft", "")).lower() in ("true", "1")
+
+    hospital_name = doctor_data.get("hospital_name") or "Medical Center"
+    doctor_name = doctor_data.get("full_name") or "Doctor"
+
+    consultation_payload = {
+        "consultation_type": consultation_type,
+        "date": document_date,
+        "consultation_date": document_date,
+        "consultation_time": consultation_time,
+        "time": consultation_time,
+        "chief_complaint": chief_complaint,
+        "hpi": hpi,
+        "history_of_present_illness": hpi,
+        "vitals": vitals,
+        "findings": findings,
+        "clinical_examination_notes": findings,
+        "diagnosis": diagnosis_primary,
+        "diagnosis_primary": diagnosis_primary,
+        "diagnosis_secondary": diagnosis_secondary,
+        "treatment_plan": treatment_plan,
+        "recommendations": recommendations,
+        "general_advice": recommendations,
+        "follow_up": follow_up,
+        "clinical_notes": clinical_notes,
+        "is_draft": is_draft
+    }
+
+    try:
+        pdf_bytes = generate_consultation_pdf(doctor_data, patient_data, consultation_payload)
+        filename = f"consultation_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        title = data.get("title", "").strip() or f"Consultation ({consultation_type}) - {datetime.now().strftime('%d %b %Y')}"
+        description = f"Chief complaint: {chief_complaint}. Diagnosis: {diagnosis_primary}" if diagnosis_primary else chief_complaint
+
+        saved_rec = save_patient_medical_record(
+            supabase_client=supabase_admin,
+            patient_id=patient_id,
+            doctor_id=doctor_id,
+            record_type="consultation",
+            title=title,
+            description=description,
+            file_bytes=pdf_bytes,
+            filename=filename,
+            content_type="application/pdf",
+            document_date=document_date,
+            structured_data={
+                "consultation": consultation_payload,
+                "doctor_name": doctor_name,
+                "hospital_name": hospital_name
+            },
+            is_draft=is_draft
+        )
+
+        try:
+            log_audit_event(
+                doctor_id=doctor_id,
+                action="CONSULTATION_NOTE_CREATED",
+                patient_ids=[patient_id],
+                status="SUCCESS",
+                metadata={"record_id": saved_rec.get("id"), "is_draft": is_draft, "diagnosis": diagnosis_primary},
+                client_ip=request.remote_addr
+            )
+        except Exception:
+            pass
+
+        saved_rec["uploader_label"] = f"Dr. {doctor_name} ({hospital_name})" if hospital_name else f"Dr. {doctor_name}"
+        saved_rec["document_date"] = document_date
+
+        return jsonify({
+            "success": True,
+            "message": "Consultation note created successfully.",
+            "record": saved_rec
+        })
+    except Exception as e:
+        print("[DoctorConsultations] Error creating consultation:", repr(e))
+        return jsonify({"success": False, "error": f"Failed to create consultation: {str(e)}"}), 500
+
+
+@app.route("/doctor/consultations/<patient_id>/create-prescription", methods=["POST"])
+def doctor_consultations_create_prescription(patient_id):
+    """Create hospital-style digital prescription with ReportLab PDF and M/A/E/N timings."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required."}), 401
+
+    doctor_id = session.get("doctor_id")
+    is_auth, patient_data = verify_doctor_patient_authorization(doctor_id, patient_id)
+    if not is_auth:
+        return jsonify({"success": False, "error": "Unauthorized: No active clinical access to this patient."}), 403
+
+    doctor_data = get_doctor_profile(doctor_id, supabase_admin, session) or {}
+
+    data = request.get_json(silent=True) or request.form.to_dict()
+    diagnosis = data.get("diagnosis", "").strip()
+    clinical_notes = data.get("clinical_notes", "").strip()
+    general_advice = data.get("general_advice", "").strip()
+    follow_up = data.get("follow_up", "").strip()
+    prescription_time = data.get("prescription_time", "").strip() or data.get("time", "").strip()
+    document_date = data.get("document_date", "").strip() or datetime.now(timezone.utc).date().isoformat()
+    is_draft = str(data.get("is_draft", "")).lower() in ("true", "1")
+
+    medicines_raw = data.get("medicines", [])
+    if isinstance(medicines_raw, str):
+        try:
+            medicines = json.loads(medicines_raw)
+        except Exception:
+            medicines = []
+    elif isinstance(medicines_raw, list):
+        medicines = medicines_raw
+    else:
+        medicines = []
+
+    prescription_payload = {
+        "date": document_date,
+        "prescription_date": document_date,
+        "prescription_time": prescription_time,
+        "time": prescription_time,
+        "diagnosis": diagnosis,
+        "clinical_notes": clinical_notes,
+        "medicines": medicines,
+        "general_advice": general_advice,
+        "follow_up": follow_up,
+        "is_draft": is_draft
+    }
+
+    hospital_name = doctor_data.get("hospital_name") or "Medical Center"
+    doctor_name = doctor_data.get("full_name") or "Doctor"
+
+    try:
+        pdf_bytes = generate_prescription_pdf(doctor_data, patient_data, prescription_payload)
+        filename = f"prescription_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        title = data.get("title", "").strip() or f"Prescription - {datetime.now().strftime('%d %b %Y')}"
+        med_count = len(medicines)
+        description = f"Prescribed {med_count} medication(s). Diagnosis: {diagnosis}" if diagnosis else f"Prescribed {med_count} medication(s)."
+
+        saved_rec = save_patient_medical_record(
+            supabase_client=supabase_admin,
+            patient_id=patient_id,
+            doctor_id=doctor_id,
+            record_type="prescription",
+            title=title,
+            description=description,
+            file_bytes=pdf_bytes,
+            filename=filename,
+            content_type="application/pdf",
+            document_date=document_date,
+            structured_data={
+                "prescription": prescription_payload,
+                "doctor_name": doctor_name,
+                "hospital_name": hospital_name
+            },
+            is_draft=is_draft
+        )
+
+        try:
+            log_audit_event(
+                doctor_id=doctor_id,
+                action="PRESCRIPTION_CREATED",
+                patient_ids=[patient_id],
+                status="SUCCESS",
+                metadata={"record_id": saved_rec.get("id"), "medication_count": med_count, "diagnosis": diagnosis},
+                client_ip=request.remote_addr
+            )
+        except Exception:
+            pass
+
+        saved_rec["uploader_label"] = f"Dr. {doctor_name} ({hospital_name})" if hospital_name else f"Dr. {doctor_name}"
+        saved_rec["document_date"] = document_date
+
+        return jsonify({
+            "success": True,
+            "message": "Prescription created successfully.",
+            "record": saved_rec
+        })
+    except Exception as e:
+        print("[DoctorConsultations] Error creating prescription:", repr(e))
+        return jsonify({"success": False, "error": f"Failed to create prescription: {str(e)}"}), 500
+
+
+@app.route("/doctor/consultations/<patient_id>/upload-document", methods=["POST"])
+def doctor_consultations_upload_document(patient_id):
+    """Upload external medical records, lab reports, imaging, or certificates."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required."}), 401
+
+    doctor_id = session.get("doctor_id")
+    is_auth, patient = verify_doctor_patient_authorization(doctor_id, patient_id)
+    if not is_auth:
+        return jsonify({"success": False, "error": "Unauthorized: No active clinical access to this patient."}), 403
+
+    if "document_file" not in request.files:
+        return jsonify({"success": False, "error": "No file uploaded."}), 400
+
+    file = request.files["document_file"]
+    if not file or not file.filename:
+        return jsonify({"success": False, "error": "Empty filename."}), 400
+
+    filename = secure_filename(file.filename)
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in ["pdf", "jpg", "jpeg", "png", "webp"]:
+        return jsonify({"success": False, "error": f"Unsupported file type (.{ext}). Allowed: PDF, JPG, PNG, WEBP."}), 400
+
+    file_bytes = file.read()
+    if len(file_bytes) > 25 * 1024 * 1024:
+        return jsonify({"success": False, "error": "File size exceeds 25 MB limit."}), 400
+
+    title = request.form.get("title", "").strip() or filename
+    record_type = request.form.get("category", "other").strip().lower()
+    description = request.form.get("description", "").strip()
+    document_date = request.form.get("document_date", "").strip() or datetime.now(timezone.utc).date().isoformat()
+
+    doctor_data = get_doctor_profile(doctor_id, supabase_admin, session) or {}
+    hospital_name = doctor_data.get("hospital_name") or "Medical Center"
+    doctor_name = doctor_data.get("full_name") or "Doctor"
+
+    content_type_map = {
+        "pdf": "application/pdf",
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "webp": "image/webp"
+    }
+    content_type = content_type_map.get(ext, "application/octet-stream")
+
+    try:
+        saved_rec = save_patient_medical_record(
+            supabase_client=supabase_admin,
+            patient_id=patient_id,
+            doctor_id=doctor_id,
+            record_type=record_type,
+            title=title,
+            description=description,
+            file_bytes=file_bytes,
+            filename=filename,
+            content_type=content_type,
+            document_date=document_date,
+            structured_data={
+                "uploaded_by_role": "doctor",
+                "doctor_name": doctor_name,
+                "hospital_name": hospital_name
+            }
+        )
+
+        try:
+            log_audit_event(
+                doctor_id=doctor_id,
+                action="MEDICAL_DOCUMENT_UPLOADED",
+                patient_ids=[patient_id],
+                status="SUCCESS",
+                metadata={"record_id": saved_rec.get("id"), "record_type": record_type, "title": title},
+                client_ip=request.remote_addr
+            )
+        except Exception:
+            pass
+
+        saved_rec["uploader_label"] = f"Dr. {doctor_name} ({hospital_name})" if hospital_name else f"Dr. {doctor_name}"
+        saved_rec["document_date"] = document_date
+
+        return jsonify({
+            "success": True,
+            "message": "Medical document uploaded successfully.",
+            "record": saved_rec
+        })
+    except Exception as e:
+        print("[DoctorConsultations] Error uploading document:", repr(e))
+        return jsonify({"success": False, "error": f"Failed to upload document: {str(e)}"}), 500
+
+
+@app.route("/doctor/consultations/<patient_id>/preview-pdf", methods=["POST"])
+def doctor_consultations_preview_pdf(patient_id):
+    """Generate in-memory PDF stream for live preview without saving."""
+    if "doctor_id" not in session:
+        return jsonify({"success": False, "error": "Doctor authentication required."}), 401
+
+    doctor_id = session.get("doctor_id")
+    is_auth, patient_data = verify_doctor_patient_authorization(doctor_id, patient_id)
+    if not is_auth:
+        return jsonify({"success": False, "error": "Unauthorized: No active clinical access to this patient."}), 403
+
+    doctor_data = get_doctor_profile(doctor_id, supabase_admin, session) or {}
+
+    data = request.get_json(silent=True) or request.form.to_dict()
+    template_type = data.get("template_type", "prescription").strip().lower()
+
+    try:
+        if template_type == "consultation":
+            vitals = data.get("vitals") if isinstance(data.get("vitals"), dict) else {}
+            payload = {
+                "consultation_type": data.get("consultation_type", "General Consultation"),
+                "date": data.get("document_date") or datetime.now(timezone.utc).date().isoformat(),
+                "consultation_date": data.get("document_date") or datetime.now(timezone.utc).date().isoformat(),
+                "consultation_time": data.get("consultation_time", ""),
+                "chief_complaint": data.get("chief_complaint", "Clinical consultation."),
+                "hpi": data.get("hpi", ""),
+                "vitals": vitals,
+                "findings": data.get("findings", ""),
+                "diagnosis": data.get("diagnosis_primary", "Clinical Impression"),
+                "treatment_plan": data.get("treatment_plan", ""),
+                "recommendations": data.get("recommendations", ""),
+                "follow_up": data.get("follow_up", ""),
+                "clinical_notes": data.get("clinical_notes", "")
+            }
+            pdf_bytes = generate_consultation_pdf(doctor_data, patient_data, payload)
+        else:
+            medicines_raw = data.get("medicines", [])
+            if isinstance(medicines_raw, str):
+                try:
+                    medicines = json.loads(medicines_raw)
+                except Exception:
+                    medicines = []
+            else:
+                medicines = medicines_raw or []
+
+            payload = {
+                "date": data.get("document_date") or datetime.now(timezone.utc).date().isoformat(),
+                "prescription_date": data.get("document_date") or datetime.now(timezone.utc).date().isoformat(),
+                "prescription_time": data.get("prescription_time", ""),
+                "diagnosis": data.get("diagnosis", "Prescription"),
+                "clinical_notes": data.get("clinical_notes", ""),
+                "medicines": medicines,
+                "general_advice": data.get("general_advice", ""),
+                "follow_up": data.get("follow_up", "")
+            }
+            pdf_bytes = generate_prescription_pdf(doctor_data, patient_data, payload)
+
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=False,
+            download_name="preview.pdf"
+        )
+    except Exception as e:
+        print("[DoctorConsultations] Preview generation error:", repr(e))
+        return jsonify({"success": False, "error": f"Preview generation failed: {str(e)}"}), 500
+
+
+@app.route("/doctor/consultations/document/<patient_id>/<record_id>/download", methods=["GET"])
+def doctor_consultations_download_document(patient_id, record_id):
+    """Download medical document PDF with proper attachment header."""
+    if "doctor_id" not in session:
+        return redirect(url_for("doctor_login"))
+
+    doctor_id = session.get("doctor_id")
+    is_auth, patient = verify_doctor_patient_authorization(doctor_id, patient_id)
+    if not is_auth:
+        flash("Unauthorized access to document.", "error")
+        return redirect(url_for("doctor_consultations"))
+
+    try:
+        rec_res = (
+            supabase_admin
+            .table("medical_records")
+            .select("*")
+            .eq("id", record_id)
+            .eq("patient_id", patient_id)
+            .single()
+            .execute()
+        )
+        record = rec_res.data
+        if not record:
+            flash("Record not found.", "error")
+            return redirect(url_for("doctor_consultations", patient_id=patient_id))
+
+        file_path = record.get("file_path")
+        file_bytes = None
+        if file_path:
+            try:
+                file_bytes = supabase_admin.storage.from_("medical-records").download(file_path)
+            except Exception as dl_err:
+                print("[DoctorConsultations] Storage download notice:", repr(dl_err))
+
+        title = secure_filename(record.get("title") or "Medical_Document")
+        if not title.endswith(".pdf"):
+            title += ".pdf"
+
+        if file_bytes:
+            return send_file(
+                io.BytesIO(file_bytes),
+                mimetype="application/pdf",
+                as_attachment=True,
+                download_name=title
+            )
+
+        # Fallback to redirecting to file_url
+        if record.get("file_url"):
+            return redirect(record["file_url"])
+
+        flash("Document file not available.", "error")
+        return redirect(url_for("doctor_consultations", patient_id=patient_id))
+    except Exception as e:
+        print("[DoctorConsultations] Download error:", repr(e))
+        flash(f"Download failed: {str(e)}", "error")
+        return redirect(url_for("doctor_consultations", patient_id=patient_id))
 
 
 # ============================================================

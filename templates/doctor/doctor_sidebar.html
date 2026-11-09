@@ -104,7 +104,7 @@
 
             <!-- Consultation & Prescription -->
             <a href="{{ url_for('doctor_consultations') }}"
-               class="doctor-sidebar-link {% if request.endpoint == 'doctor_consultations' %}active{% endif %}">
+               class="doctor-sidebar-link {% if request.endpoint in ['doctor_consultations', 'doctor_consultations_prescriptions'] %}active{% endif %}">
                 <span class="doctor-nav-icon">📝</span>
                 <span class="doctor-nav-text">Consultation & Prescription</span>
             </a>

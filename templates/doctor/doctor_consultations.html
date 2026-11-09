@@ -1,20 +1,871 @@
 {% extends "doctor_base.html" %}
 
-{% block title %}Consultation & Prescription - OmniCare AI{% endblock %}
+{% block title %}Consultations & Prescriptions — OmniCare AI{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/doctor_consultations.css') }}">
+{% endblock %}
 
 {% block content %}
-<div class="doctor-dashboard">
-    <div class="dashboard-header">
-        <div>
-            <span class="dashboard-label">DOCTOR PORTAL</span>
-            <h1>Consultation &amp; Prescription</h1>
-            <p>Manage patient consultations, notes, and digital prescriptions.</p>
+<div class="consultations-page-container">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div style="margin-bottom: 20px;">
+                {% for category, message in messages %}
+                    <div style="padding: 12px 16px; border-radius: 8px; font-size: 13.5px; font-weight: 600; margin-bottom: 8px; background: {% if category == 'error' %}#fee2e2; color: #991b1b; border: 1px solid #f87171;{% else %}#dcfce7; color: #166534; border: 1px solid #86efac;{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- ====================================================================
+         1. PAGE HEADER
+         ==================================================================== -->
+    <div class="consultations-header-card">
+        <div class="header-title-block">
+            <span class="badge-label">Clinical Care Hub</span>
+            <h1>Consultations &amp; Prescriptions</h1>
+            <p>Author formal clinical consultations, generate hospital-grade digital prescriptions, and inspect unified patient document history.</p>
+        </div>
+        <div class="header-doctor-badge">
+            <div class="doctor-avatar-circle">
+                {{ (doctor.get('full_name') or 'D')[0]|upper }}
+            </div>
+            <div class="doctor-badge-info">
+                <h4>Dr. {{ doctor.get('full_name') or 'Physician' }}</h4>
+                <span>{{ doctor.get('specialization') or 'Specialist' }} • Reg: {{ doctor.get('medical_registration_number') or 'Active' }}</span>
+            </div>
         </div>
     </div>
-    <div class="empty-patients">
-        <div class="empty-icon">📝</div>
-        <h3>No active consultations</h3>
-        <p>Select an authorized patient to create a new consultation note or prescription.</p>
+
+    <!-- ====================================================================
+         2. PATIENT SELECTION COMPONENT
+         ==================================================================== -->
+    <div class="patient-selection-card">
+        <div class="section-label-row">
+            <h3><span>👤</span> Select Authorized Patient</h3>
+            <span style="font-size: 12.5px; color: #64748b;">
+                Showing patients with verified active clinical authorization
+            </span>
+        </div>
+
+        <div class="patient-search-wrapper">
+            <div class="patient-search-input-group">
+                <span class="patient-search-icon">🔍</span>
+                <input
+                    type="text"
+                    id="patientSearchInput"
+                    class="patient-search-input"
+                    placeholder="Search authorized patients by Name, Health ID, or Patient ID..."
+                    autocomplete="off"
+                    value="{% if selected_patient %}{{ selected_patient.get('name') or selected_patient.get('full_name') }}{% endif %}"
+                >
+            </div>
+            <div id="patientAutocompleteDropdown" class="patient-autocomplete-dropdown"></div>
+        </div>
+
+        {% if authorized_patients and authorized_patients|length > 0 %}
+            <div class="quick-patient-chips">
+                <span class="quick-chip-label">Quick select:</span>
+                {% for p in authorized_patients[:6] %}
+                    <a
+                        href="{{ url_for('doctor_consultations_prescriptions', patient_id=p.get('id') or p.get('patient_id')) }}"
+                        class="patient-chip-btn {% if selected_patient and (selected_patient.get('id') == p.get('id') or selected_patient.get('patient_id') == p.get('id')) %}active{% endif %}"
+                    >
+                        <span>{{ p.get('name') or p.get('full_name') or 'Patient' }}</span>
+                        <span style="opacity: 0.7; font-size: 11px;">({{ p.get('health_id') or 'ID' }})</span>
+                    </a>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if selected_patient %}
+            <!-- Selected Patient Active Card Banner -->
+            <div class="selected-patient-banner" id="selectedPatientBanner">
+                <div class="patient-banner-avatar">
+                    {{ (selected_patient.get('name') or selected_patient.get('full_name') or 'P')[0]|upper }}
+                </div>
+                <div class="patient-banner-info">
+                    <div class="patient-banner-title-row">
+                        <h3 class="patient-banner-name">{{ selected_patient.get('name') or selected_patient.get('full_name') or 'Patient' }}</h3>
+                        <span class="patient-health-id-pill">ID: {{ selected_patient.get('health_id') or selected_patient.get('id') }}</span>
+                        <span class="patient-access-pill">
+                            ✓ {% if selected_patient.get('is_permanent') %}Permanent Access{% else %}{{ (selected_patient.get('access_type') or 'Active Access')|title }}{% endif %}
+                        </span>
+                    </div>
+                    <div class="patient-meta-attributes">
+                        <span>Age: <strong>{{ selected_patient.get('age') or 'N/A' }}</strong></span>
+                        <span>Gender: <strong>{{ selected_patient.get('gender') or 'N/A' }}</strong></span>
+                        <span>Blood Group: <strong>{{ selected_patient.get('blood_group') or 'Unknown' }}</strong></span>
+                        {% if selected_patient.get('weight') %}
+                            <span>Weight: <strong>{{ selected_patient.get('weight') }} kg</strong></span>
+                        {% endif %}
+                        {% if selected_patient.get('allergies') %}
+                            <span>Allergies: <strong style="color: #b91c1c;">{{ selected_patient.get('allergies') }}</strong></span>
+                        {% endif %}
+                        <span>Access Granted: <strong>{{ selected_patient.get('approved_at', '')[:10] or 'Verified' }}</strong></span>
+                    </div>
+                </div>
+                <div>
+                    <button type="button" class="btn-change-patient" onclick="document.getElementById('patientSearchInput').focus(); document.getElementById('patientSearchInput').select();">
+                        <span>🔄 Change Patient</span>
+                    </button>
+                </div>
+            </div>
+        {% else %}
+            <!-- No Patient Selected Notice -->
+            <div style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 12px; padding: 28px 20px; text-align: center; margin-top: 14px;">
+                <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
+                <h4 style="margin: 0 0 6px; color: #123f63; font-size: 16px; font-weight: 700;">No Patient Currently Selected</h4>
+                <p style="margin: 0 auto; max-width: 500px; color: #64748b; font-size: 13.5px;">
+                    Search by patient name, Health ID, or patient ID above to review their unified document history, prescribe medications, or author consultation notes.
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if selected_patient %}
+        <!-- ====================================================================
+             3. PATIENT DOCUMENT SUMMARY CARDS
+             ==================================================================== -->
+        <div class="document-summary-grid">
+            <div class="summary-stat-card active-filter" data-category="all">
+                <div class="stat-icon-wrapper stat-icon-total">📂</div>
+                <div class="stat-text-block">
+                    <div class="stat-count" id="countTotalDocs">{{ doc_summary.get('total', 0) }}</div>
+                    <div class="stat-label">Total Documents</div>
+                </div>
+            </div>
+
+            <div class="summary-stat-card" data-category="consultation">
+                <div class="stat-icon-wrapper stat-icon-consult">🩺</div>
+                <div class="stat-text-block">
+                    <div class="stat-count" id="countConsultations">{{ doc_summary.get('consultations', 0) }}</div>
+                    <div class="stat-label">Consultations</div>
+                </div>
+            </div>
+
+            <div class="summary-stat-card" data-category="prescription">
+                <div class="stat-icon-wrapper stat-icon-prescript">💊</div>
+                <div class="stat-text-block">
+                    <div class="stat-count" id="countPrescriptions">{{ doc_summary.get('prescriptions', 0) }}</div>
+                    <div class="stat-label">Prescriptions</div>
+                </div>
+            </div>
+
+            <div class="summary-stat-card" data-category="lab">
+                <div class="stat-icon-wrapper stat-icon-lab">🔬</div>
+                <div class="stat-text-block">
+                    <div class="stat-count" id="countLab">{{ doc_summary.get('lab_reports', 0) }}</div>
+                    <div class="stat-label">Lab Reports</div>
+                </div>
+            </div>
+
+            <div class="summary-stat-card" data-category="imaging">
+                <div class="stat-icon-wrapper stat-icon-imaging">🩻</div>
+                <div class="stat-text-block">
+                    <div class="stat-count" id="countImaging">{{ doc_summary.get('imaging', 0) }}</div>
+                    <div class="stat-label">Imaging Reports</div>
+                </div>
+            </div>
+
+            <div class="summary-stat-card" data-category="other">
+                <div class="stat-icon-wrapper stat-icon-other">📑</div>
+                <div class="stat-text-block">
+                    <div class="stat-count" id="countOther">{{ doc_summary.get('other', 0) }}</div>
+                    <div class="stat-label">Other Records</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             4. PRIMARY ACTION CARDS (CONSULTATION, PRESCRIPTION, UPLOAD OTHER)
+             ==================================================================== -->
+        <div class="actions-cards-grid">
+            <!-- Card 1: New Clinical Consultation -->
+            <div class="action-card">
+                <div>
+                    <div class="action-card-top">
+                        <div class="action-card-icon">🩺</div>
+                        <div class="action-card-info">
+                            <h3>Clinical Consultation</h3>
+                            <p>Record comprehensive clinical findings, vitals examination, diagnostic impressions, and treatment plans.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-card-buttons">
+                    <button type="button" class="btn-action-primary" onclick="openConsultationModal()">
+                        <span>📝 Use Consultation Template</span>
+                    </button>
+                    <button type="button" class="btn-action-secondary" onclick="openUploadDocumentModal('consultation')">
+                        <span>📤 Upload Consultation Document</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 2: Digital Prescription -->
+            <div class="action-card">
+                <div>
+                    <div class="action-card-top">
+                        <div class="action-card-icon">💊</div>
+                        <div class="action-card-info">
+                            <h3>Digital Prescription</h3>
+                            <p>Author structured electronic prescriptions with dosages, frequencies, and horizontal M/A/E/N timing chips.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-card-buttons">
+                    <button type="button" class="btn-action-primary" onclick="openPrescriptionModal()">
+                        <span>⚡ Use Prescription Template</span>
+                    </button>
+                    <button type="button" class="btn-action-secondary" onclick="openUploadDocumentModal('prescription')">
+                        <span>📤 Upload Prescription Document</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 3: Upload Other Documents -->
+            <div class="action-card">
+                <div>
+                    <div class="action-card-top">
+                        <div class="action-card-icon">📤</div>
+                        <div class="action-card-info">
+                            <h3>Upload Medical Document</h3>
+                            <p>Add lab tests, MRI/CT scans, discharge summaries, referral letters, or external certificates to patient records.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-card-buttons">
+                    <button type="button" class="btn-action-primary" onclick="openUploadDocumentModal('other')">
+                        <span>📄 Upload External Medical Document</span>
+                    </button>
+                    <a href="{{ url_for('doctor_patient_workspace', patient_id=selected_patient.get('id') or selected_patient.get('patient_id')) }}" class="btn-action-secondary" style="text-decoration: none;">
+                        <span>🔍 Open Full Patient Workspace</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================================================================
+             5. MAIN WORKSPACE: DOCUMENT HISTORY TABLE + RECENT WIDGETS
+             ==================================================================== -->
+        <div class="consultations-main-grid">
+
+            <!-- Left / Center: Complete Patient Document History Table -->
+            <div class="history-table-card">
+                <div class="history-card-header">
+                    <h2>
+                        <span>📑</span>
+                        <span>Patient Document History</span>
+                        <span class="badge-count-pill" id="tableCountBadge">{{ records|length }}</span>
+                    </h2>
+                    <span style="font-size: 12px; color: #64748b;">
+                        Unified records from both Patient and Attending Doctors
+                    </span>
+                </div>
+
+                <div class="table-filter-bar">
+                    <div class="category-filter-pills">
+                        <button type="button" class="cat-filter-btn active" data-category="all">All Documents</button>
+                        <button type="button" class="cat-filter-btn" data-category="consultation">Consultations</button>
+                        <button type="button" class="cat-filter-btn" data-category="prescription">Prescriptions</button>
+                        <button type="button" class="cat-filter-btn" data-category="lab">Lab Reports</button>
+                        <button type="button" class="cat-filter-btn" data-category="imaging">Imaging Reports</button>
+                        <button type="button" class="cat-filter-btn" data-category="other">Other Documents</button>
+                    </div>
+                    <div>
+                        <input
+                            type="text"
+                            id="tableSearchInput"
+                            class="table-search-input"
+                            placeholder="Filter documents..."
+                        >
+                    </div>
+                </div>
+
+                <div class="table-responsive-wrapper">
+                    <table class="clinical-documents-table">
+                        <thead>
+                            <tr>
+                                <th>Document Title</th>
+                                <th>Category</th>
+                                <th>Uploaded / Created By</th>
+                                <th>Date &amp; Time</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if records and records|length > 0 %}
+                                {% for r in records %}
+                                    {% set r_type = (r.get('record_type') or 'other')|lower %}
+                                    <tr class="doc-row" data-category="{{ r_type }}">
+                                        <td>
+                                            <div class="doc-title-cell">
+                                                <span class="doc-type-icon">
+                                                    {% if r_type == 'consultation' %}🩺
+                                                    {% elif r_type == 'prescription' %}💊
+                                                    {% elif r_type in ['lab_report', 'lab', 'blood_test'] %}🔬
+                                                    {% elif r_type in ['scan_imaging', 'imaging', 'xray', 'mri'] %}🩻
+                                                    {% else %}📄{% endif %}
+                                                </span>
+                                                <div class="doc-title-text">
+                                                    <h4>{{ r.get('title') or 'Medical Document' }}</h4>
+                                                    {% if r.get('description') %}
+                                                        <p>{{ r.get('description')|truncate(65) }}</p>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="doc-badge {{ r_type }}">
+                                                {{ (r.get('record_type') or 'document')|replace('_', ' ') }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span style="font-weight: 600; color: #1e293b;">
+                                                {{ r.get('uploader_label') or (('Dr. ' ~ r.get('doctor_name')) if r.get('doctor_name') else 'Patient') }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span style="color: #64748b;">
+                                                {{ r.get('display_date') or r.get('document_date') or (r.get('uploaded_at', '')[:10]) }}
+                                            </span>
+                                        </td>
+                                        <td style="text-align: right;">
+                                            <div class="table-action-btns" style="justify-content: flex-end;">
+                                                <button
+                                                    type="button"
+                                                    class="btn-tbl-view"
+                                                    onclick="viewDocumentPdf('{{ r.get('file_url') }}', '{{ r.get('title')|escape }}')"
+                                                >
+                                                    <span>👁️ View</span>
+                                                </button>
+                                                <a
+                                                    href="{{ r.get('file_url') }}"
+                                                    download
+                                                    class="btn-tbl-download"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    <span>⬇️ Download</span>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr id="emptyTableTr">
+                                    <td colspan="5">
+                                        <div class="table-empty-state">
+                                            <div class="empty-icon">📂</div>
+                                            <h4>No Medical Records Found</h4>
+                                            <p>No documents have been uploaded or authored for this patient yet.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    <div id="tableEmptyFilterState" class="table-empty-state" style="display: none;">
+                        <div class="empty-icon">🔍</div>
+                        <h4>No Matching Documents</h4>
+                        <p>No documents match the currently selected filter or search term.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Recent Prescriptions & Consultations Widgets -->
+            <div class="side-widgets-column">
+
+                <!-- Recent Prescriptions -->
+                <div class="side-widget-card">
+                    <div class="side-widget-header">
+                        <h3><span>💊</span> Recent Prescriptions</h3>
+                        <span class="badge-count-pill">{{ recent_prescriptions|length }}</span>
+                    </div>
+                    <div class="side-records-list" id="recentPrescriptionsList">
+                        {% if recent_prescriptions and recent_prescriptions|length > 0 %}
+                            {% for rx in recent_prescriptions %}
+                                <div class="side-record-item">
+                                    <div class="side-record-top">
+                                        <span class="side-record-title">{{ rx.get('title') or 'Prescription' }}</span>
+                                        <span class="side-record-date">{{ rx.get('display_date') or rx.get('document_date') or 'Recent' }}</span>
+                                    </div>
+                                    <div class="side-record-doctor">
+                                        Dr. {{ rx.get('doctor_name') or doctor.get('full_name') or 'Physician' }}
+                                    </div>
+                                    <div class="side-record-actions">
+                                        <button type="button" class="side-btn-view" onclick="viewDocumentPdf('{{ rx.get('file_url') }}', '{{ rx.get('title')|escape }}')">
+                                            View
+                                        </button>
+                                        <a href="{{ rx.get('file_url') }}" download class="side-btn-download" target="_blank">
+                                            Download PDF
+                                        </a>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="side-widget-empty">
+                                No prescriptions authored yet for this patient.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Recent Consultations -->
+                <div class="side-widget-card">
+                    <div class="side-widget-header">
+                        <h3><span>🩺</span> Recent Consultations</h3>
+                        <span class="badge-count-pill">{{ recent_consultations|length }}</span>
+                    </div>
+                    <div class="side-records-list" id="recentConsultationsList">
+                        {% if recent_consultations and recent_consultations|length > 0 %}
+                            {% for c in recent_consultations %}
+                                <div class="side-record-item">
+                                    <div class="side-record-top">
+                                        <span class="side-record-title">{{ c.get('title') or 'Consultation Note' }}</span>
+                                        <span class="side-record-date">{{ c.get('display_date') or c.get('document_date') or 'Recent' }}</span>
+                                    </div>
+                                    <div class="side-record-doctor">
+                                        Dr. {{ c.get('doctor_name') or doctor.get('full_name') or 'Physician' }}
+                                    </div>
+                                    <div class="side-record-actions">
+                                        <button type="button" class="side-btn-view" onclick="viewDocumentPdf('{{ c.get('file_url') }}', '{{ c.get('title')|escape }}')">
+                                            View
+                                        </button>
+                                        <a href="{{ c.get('file_url') }}" download class="side-btn-download" target="_blank">
+                                            Download PDF
+                                        </a>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="side-widget-empty">
+                                No clinical consultations authored yet for this patient.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    {% endif %}
+
+</div>
+
+<!-- ========================================================================
+     MODAL 1: CONSULTATION TEMPLATE MODAL
+     ======================================================================== -->
+<div class="consultations-modal-overlay" id="consultationModal">
+    <div class="consultations-modal-card">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-header-icon">🩺</div>
+                <div class="modal-header-text">
+                    <h3>Clinical Consultation Note</h3>
+                    <p>Document patient examination, vital signs, diagnosis, and treatment plan</p>
+                </div>
+            </div>
+            <button type="button" class="modal-close-btn" onclick="closeConsultationModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+            <!-- Context Banner -->
+            <div class="modal-context-banner">
+                <div class="context-chip">
+                    <span>👨‍⚕️ <strong>Doctor:</strong> Dr. {{ doctor.get('full_name') or 'Attending Physician' }} ({{ doctor.get('specialization') or 'Specialist' }})</span>
+                </div>
+                <div class="context-chip">
+                    <span>🏥 <strong>Hospital:</strong> {{ doctor.get('hospital_name') or 'Medical Center' }}</span>
+                </div>
+                {% if selected_patient %}
+                    <div class="context-chip">
+                        <span>👤 <strong>Patient:</strong> {{ selected_patient.get('name') or selected_patient.get('full_name') }} ({{ selected_patient.get('health_id') }})</span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <form id="consultationForm" onsubmit="event.preventDefault(); saveConsultationForm(false);">
+                <div class="form-grid-3">
+                    <div class="form-field">
+                        <label>Consultation Type <span class="req">*</span></label>
+                        <select class="form-select" name="consultation_type" required>
+                            <option value="General Consultation">General Consultation</option>
+                            <option value="Follow-up Review">Follow-up Review</option>
+                            <option value="Emergency Consultation">Emergency Consultation</option>
+                            <option value="Specialist Evaluation">Specialist Evaluation</option>
+                            <option value="Teleconsultation">Teleconsultation</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Consultation Date <span class="req">*</span></label>
+                        <input type="date" class="form-input" name="consultation_date" value="{{ today_date }}" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Consultation Time</label>
+                        <input type="time" class="form-input" name="consultation_time" value="{{ current_time }}">
+                    </div>
+                </div>
+
+                <div class="form-section-title">📊 Vitals Examination</div>
+                <div class="form-grid-4">
+                    <div class="form-field">
+                        <label>Blood Pressure</label>
+                        <input type="text" class="form-input" name="vital_bp" placeholder="e.g. 120/80 mmHg">
+                    </div>
+                    <div class="form-field">
+                        <label>Pulse Rate</label>
+                        <input type="text" class="form-input" name="vital_pulse" placeholder="e.g. 72 bpm">
+                    </div>
+                    <div class="form-field">
+                        <label>Temperature</label>
+                        <input type="text" class="form-input" name="vital_temp" placeholder="e.g. 98.6 °F">
+                    </div>
+                    <div class="form-field">
+                        <label>SpO2</label>
+                        <input type="text" class="form-input" name="vital_spo2" placeholder="e.g. 98 %">
+                    </div>
+                </div>
+                <div class="form-grid-4">
+                    <div class="form-field">
+                        <label>Resp Rate</label>
+                        <input type="text" class="form-input" name="vital_rr" placeholder="e.g. 16 breaths/min">
+                    </div>
+                    <div class="form-field">
+                        <label>Weight (kg)</label>
+                        <input type="text" class="form-input" name="vital_weight" placeholder="e.g. 70" value="{{ selected_patient.get('weight') or '' if selected_patient else '' }}">
+                    </div>
+                    <div class="form-field">
+                        <label>Height (cm)</label>
+                        <input type="text" class="form-input" name="vital_height" placeholder="e.g. 175">
+                    </div>
+                    <div class="form-field">
+                        <label>BMI</label>
+                        <input type="text" class="form-input" name="vital_bmi" placeholder="e.g. 22.8">
+                    </div>
+                </div>
+
+                <div class="form-section-title">🩺 Clinical Details &amp; History</div>
+                <div class="form-field" style="margin-bottom: 12px;">
+                    <label>Chief Complaint <span class="req">*</span></label>
+                    <input type="text" class="form-input" name="chief_complaint" placeholder="e.g. Severe headache and low-grade fever for 3 days" required>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-field">
+                        <label>Symptoms / History of Present Illness (HPI)</label>
+                        <textarea class="form-textarea" name="hpi" rows="2" placeholder="Onset, duration, severity, progression..."></textarea>
+                    </div>
+                    <div class="form-field">
+                        <label>Relevant Medical History</label>
+                        <textarea class="form-textarea" name="medical_history" rows="2" placeholder="Past illnesses, surgical history, family history..."></textarea>
+                    </div>
+                </div>
+
+                <div class="form-field" style="margin-bottom: 12px;">
+                    <label>Physical Examination Findings</label>
+                    <textarea class="form-textarea" name="findings" rows="2" placeholder="Systemic examination, chest, abdomen, neuro findings..."></textarea>
+                </div>
+
+                <div class="form-section-title">🔍 Diagnosis &amp; Clinical Impression</div>
+                <div class="form-grid-2">
+                    <div class="form-field">
+                        <label>Primary Diagnosis / Impression <span class="req">*</span></label>
+                        <input type="text" class="form-input" name="diagnosis_primary" placeholder="e.g. Acute Viral Pharyngitis" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Secondary / Differential Diagnosis</label>
+                        <input type="text" class="form-input" name="diagnosis_secondary" placeholder="e.g. Seasonal Allergic Rhinitis">
+                    </div>
+                </div>
+
+                <div class="form-section-title">💊 Treatment Plan &amp; Recommendations</div>
+                <div class="form-grid-2">
+                    <div class="form-field">
+                        <label>Treatment Plan / Interventions</label>
+                        <textarea class="form-textarea" name="treatment_plan" rows="2" placeholder="Prescribed regimen, therapy, procedures..."></textarea>
+                    </div>
+                    <div class="form-field">
+                        <label>Investigations Recommended</label>
+                        <textarea class="form-textarea" name="investigations_recommended" rows="2" placeholder="e.g. Complete Blood Count (CBC), Serum Creatinine..."></textarea>
+                    </div>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-field">
+                        <label>Clinical Advice &amp; Lifestyle Instructions</label>
+                        <textarea class="form-textarea" name="recommendations" rows="2" placeholder="Dietary restrictions, rest, hydration..."></textarea>
+                    </div>
+                    <div class="form-field">
+                        <label>Follow-up Instructions &amp; Date</label>
+                        <textarea class="form-textarea" name="follow_up" rows="2" placeholder="Review after 5 days or if symptoms worsen..."></textarea>
+                    </div>
+                </div>
+
+                <div class="form-field" style="margin-top: 8px;">
+                    <label>Additional Clinical Notes / Warnings</label>
+                    <textarea class="form-textarea" name="clinical_notes" rows="2" placeholder="Red-flag symptoms to report immediately..."></textarea>
+                </div>
+            </form>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn-action-secondary" style="width: auto;" onclick="closeConsultationModal()">
+                Cancel
+            </button>
+            <div class="modal-footer-actions">
+                <button type="button" class="btn-action-secondary" style="width: auto;" onclick="saveConsultationForm(true)">
+                    <span>💾 Save as Draft</span>
+                </button>
+                <button type="button" id="btnSaveConsultation" class="btn-action-primary" style="width: auto;" onclick="saveConsultationForm(false)">
+                    <span>✓ Save Consultation Note</span>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- ========================================================================
+     MODAL 2: DIGITAL PRESCRIPTION TEMPLATE MODAL (TWO-PANEL PREVIEW)
+     ======================================================================== -->
+<div class="consultations-modal-overlay" id="prescriptionModal">
+    <div class="consultations-modal-card modal-wide-prescription">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-header-icon">💊</div>
+                <div class="modal-header-text">
+                    <h3>Digital Prescription Builder</h3>
+                    <p>Design structured prescription with live PDF preview and horizontal M/A/E/N timing chips</p>
+                </div>
+            </div>
+            <button type="button" class="modal-close-btn" onclick="closePrescriptionModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+            <div class="prescription-two-panel-grid">
+                <!-- Left Panel: Form Inputs -->
+                <div class="prescription-form-panel">
+                    <div class="modal-context-banner">
+                        <div class="context-chip">
+                            <span>👨‍⚕️ <strong>Dr. {{ doctor.get('full_name') or 'Physician' }}</strong> ({{ doctor.get('qualification') or 'MBBS, MD' }})</span>
+                        </div>
+                        <div class="context-chip">
+                            <span>🏥 <strong>{{ doctor.get('hospital_name') or 'OmniCare Partner Hospital' }}</strong></span>
+                        </div>
+                        {% if selected_patient %}
+                            <div class="context-chip">
+                                <span>👤 <strong>{{ selected_patient.get('name') or selected_patient.get('full_name') }}</strong> ({{ selected_patient.get('health_id') }})</span>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <form id="prescriptionForm" onsubmit="event.preventDefault(); savePrescriptionForm(false);">
+                        <div class="form-grid-3">
+                            <div class="form-field">
+                                <label>Prescription Date <span class="req">*</span></label>
+                                <input type="date" class="form-input" name="rx_date" value="{{ today_date }}" onchange="schedulePrescriptionPreview()" required>
+                            </div>
+                            <div class="form-field">
+                                <label>Prescription Time</label>
+                                <input type="time" class="form-input" name="rx_time" value="{{ current_time }}" onchange="schedulePrescriptionPreview()">
+                            </div>
+                            <div class="form-field">
+                                <label>Diagnosis / Indication <span class="req">*</span></label>
+                                <input type="text" class="form-input" name="rx_diagnosis" placeholder="e.g. Acute Bronchitis" oninput="schedulePrescriptionPreview()" required>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Medicines Table -->
+                        <div class="medicines-table-container">
+                            <div class="medicines-header-row">
+                                <h4><span>℞</span> Prescribed Medications</h4>
+                                <button type="button" class="btn-add-medicine" onclick="addMedicineRow()">
+                                    <span>➕ Add Medicine</span>
+                                </button>
+                            </div>
+
+                            <div id="medicineRowsContainer">
+                                <!-- Dynamic medicine rows rendered here -->
+                            </div>
+                        </div>
+
+                        <div class="form-grid-2">
+                            <div class="form-field">
+                                <label>General Advice / Dietary Instructions</label>
+                                <textarea class="form-textarea" name="rx_general_advice" rows="2" placeholder="Hydration, low-sodium diet, avoid strenuous exercise..." oninput="schedulePrescriptionPreview()"></textarea>
+                            </div>
+                            <div class="form-field">
+                                <label>Follow-up Instructions &amp; Date</label>
+                                <textarea class="form-textarea" name="rx_follow_up" rows="2" placeholder="Review after 7 days with repeat fasting glucose..." oninput="schedulePrescriptionPreview()"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-field" style="margin-top: 8px;">
+                            <label>Clinical Notes / Warnings</label>
+                            <input type="text" class="form-input" name="rx_clinical_notes" placeholder="Discontinue immediately if skin rash or dizziness occurs" oninput="schedulePrescriptionPreview()">
+                        </div>
+
+                        <div style="margin-top: 10px;">
+                            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #1e293b; cursor: pointer;">
+                                <input type="checkbox" name="rx_review_after_tests" value="1" onchange="schedulePrescriptionPreview()">
+                                <span>Patient requires review after completing recommended laboratory tests</span>
+                            </label>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Right Panel: Live PDF Preview Frame -->
+                <div class="prescription-preview-panel">
+                    <div class="preview-panel-header">
+                        <h4>📄 Live PDF Preview</h4>
+                        <span style="font-size: 11px; color: #64748b;">Updates automatically as you type</span>
+                    </div>
+                    <iframe
+                        id="prescriptionLiveIframe"
+                        class="prescription-live-iframe"
+                        src="about:blank"
+                        title="Live Prescription Preview"
+                    ></iframe>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn-action-secondary" style="width: auto;" onclick="closePrescriptionModal()">
+                Cancel
+            </button>
+            <div class="modal-footer-actions">
+                <button type="button" class="btn-action-secondary" style="width: auto;" onclick="savePrescriptionForm(true)">
+                    <span>💾 Save as Draft</span>
+                </button>
+                <button type="button" class="btn-action-secondary" style="width: auto;" onclick="updatePrescriptionLivePreview()">
+                    <span>🔄 Refresh Preview</span>
+                </button>
+                <button type="button" id="btnSavePrescription" class="btn-action-primary" style="width: auto;" onclick="savePrescriptionForm(false)">
+                    <span>✓ Save &amp; Generate Prescription</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================
+     MODAL 3: UPLOAD MEDICAL DOCUMENT MODAL
+     ======================================================================== -->
+<div class="consultations-modal-overlay" id="uploadDocumentModal">
+    <div class="consultations-modal-card" style="max-width: 620px;">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-header-icon">📤</div>
+                <div class="modal-header-text">
+                    <h3>Upload Medical Document</h3>
+                    <p>Attach clinical reports, lab results, scans, or existing prescriptions</p>
+                </div>
+            </div>
+            <button type="button" class="modal-close-btn" onclick="closeUploadDocumentModal()">✕</button>
+        </div>
+
+        <div class="modal-body">
+            {% if selected_patient %}
+                <div class="modal-context-banner">
+                    <div class="context-chip">
+                        <span>Uploading to: <strong>{{ selected_patient.get('name') or selected_patient.get('full_name') }}</strong> ({{ selected_patient.get('health_id') }})</span>
+                    </div>
+                </div>
+            {% endif %}
+
+            <form id="uploadDocumentForm" onsubmit="event.preventDefault(); submitUploadDocumentForm();">
+                <div class="form-field" style="margin-bottom: 12px;">
+                    <label>Document Title <span class="req">*</span></label>
+                    <input type="text" class="form-input" name="title" placeholder="e.g. Complete Blood Count (CBC) Report" required>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-field">
+                        <label>Document Category <span class="req">*</span></label>
+                        <select class="form-select" id="uploadDocCategory" name="category" required>
+                            <option value="consultation">Consultation Note</option>
+                            <option value="prescription">Prescription</option>
+                            <option value="lab_report">Laboratory Report</option>
+                            <option value="scan_imaging">Scan / Imaging (X-Ray, CT, MRI)</option>
+                            <option value="discharge_summary">Discharge Summary</option>
+                            <option value="referral_letter">Referral Letter</option>
+                            <option value="medical_certificate">Medical Certificate</option>
+                            <option value="other" selected>Other Medical Document</option>
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Document Date <span class="req">*</span></label>
+                        <input type="date" class="form-input" name="document_date" value="{{ today_date }}" required>
+                    </div>
+                </div>
+
+                <div class="form-field" style="margin-bottom: 14px;">
+                    <label>Clinical Description / Summary</label>
+                    <textarea class="form-textarea" name="description" rows="2" placeholder="Brief summary of test findings or impressions..."></textarea>
+                </div>
+
+                <div class="file-upload-dropzone" id="docUploadDropzone">
+                    <div class="dropzone-icon">📁</div>
+                    <h4>Click or drag &amp; drop to upload file</h4>
+                    <p>Supported: PDF, JPG, PNG, WEBP (Max: 25 MB)</p>
+                    <input type="file" id="docUploadFileInput" name="document_file" style="display: none;" accept=".pdf,.png,.jpg,.jpeg,.webp">
+                    <div id="selectedFilePill" class="selected-file-pill" style="display: none;"></div>
+                </div>
+            </form>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn-action-secondary" style="width: auto;" onclick="closeUploadDocumentModal()">
+                Cancel
+            </button>
+            <button type="button" id="btnSubmitDocUpload" class="btn-action-primary" style="width: auto;" onclick="submitUploadDocumentForm()">
+                <span>⬆️ Upload Document</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================
+     MODAL 4: VIEW PDF MODAL FRAME
+     ======================================================================== -->
+<div class="consultations-modal-overlay" id="pdfViewerModal">
+    <div class="consultations-modal-card" style="max-width: 960px; height: 90vh;">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-header-icon">📄</div>
+                <div class="modal-header-text">
+                    <h3 id="pdfViewerTitle">Document Preview</h3>
+                    <p>Clinical Medical Record</p>
+                </div>
+            </div>
+            <button type="button" class="modal-close-btn" onclick="closePdfViewerModal()">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 10px; height: 100%;">
+            <iframe id="pdfViewerIframe" style="width: 100%; height: 100%; min-height: 520px; border: none; border-radius: 6px;" src="about:blank"></iframe>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-action-secondary" style="width: auto;" onclick="closePdfViewerModal()">
+                Close
+            </button>
+            <a id="pdfViewerDownloadBtn" href="#" download class="btn-action-primary" style="width: auto; text-decoration: none;">
+                <span>⬇️ Download PDF</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div id="consultationsToast" class="consultations-toast"></div>
+
+<!-- Inline Window Data for Client JS -->
+<script>
+    window.AUTHORIZED_PATIENTS = {{ authorized_patients|tojson|safe }};
+    window.SELECTED_PATIENT = {{ selected_patient|tojson|safe if selected_patient else 'null' }};
+    window.DOCTOR_PROFILE = {{ doctor|tojson|safe }};
+</script>
+<script src="{{ url_for('static', filename='js/doctor_consultations.js') }}"></script>
 {% endblock %}
