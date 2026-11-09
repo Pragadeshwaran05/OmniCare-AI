@@ -1295,6 +1295,14 @@ async function askDoctorAI(
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 12,
+                            bottom: 8,
+                            left: 8,
+                            right: 14
+                        }
+                    },
                     interaction: {
                         mode: "index",
                         intersect: false
@@ -1345,30 +1353,39 @@ async function askDoctorAI(
                     scales: {
                         x: {
                             grid: {
-                                color: "#f1f5f9"
+                                color: "#f1f5f9",
+                                drawBorder: false
                             },
                             ticks: {
+                                autoSkip: true,
+                                maxTicksLimit: 6,
+                                maxRotation: 45,
+                                minRotation: 0,
                                 font: {
-                                    size: 11,
+                                    size: 10,
                                     weight: "600"
                                 },
-                                color: "#64748b"
+                                color: "#64748b",
+                                padding: 4
                             }
                         },
                         y: {
                             grid: {
-                                color: "#e2e8f0"
+                                color: "#e2e8f0",
+                                drawBorder: false
                             },
                             ticks: {
+                                maxTicksLimit: 6,
                                 font: {
-                                    size: 11,
+                                    size: 10,
                                     weight: "600"
                                 },
-                                color: "#64748b"
+                                color: "#64748b",
+                                padding: 6
                             },
                             title: {
-                                display: true,
-                                text: chartData.unit,
+                                display: Boolean(chartData.unit),
+                                text: chartData.unit || "",
                                 color: "#64748b",
                                 font: { size: 11, weight: "bold" }
                             }
@@ -1379,9 +1396,35 @@ async function askDoctorAI(
         });
     }
 
+    // Window Resize Handler to keep charts perfectly fitted within responsive cards
+    let trendResizeTimer = null;
+    window.addEventListener("resize", function () {
+        clearTimeout(trendResizeTimer);
+        trendResizeTimer = setTimeout(function () {
+            if (typeof chartInstances === "object" && chartInstances !== null) {
+                Object.values(chartInstances).forEach(function (chart) {
+                    if (chart && typeof chart.resize === "function") {
+                        try {
+                            chart.resize();
+                        } catch (e) {}
+                    }
+                });
+            }
+        }, 100);
+    });
+
     // 6. Tab Activation Hook
     window.onTrendTabActivated = function () {
         setTimeout(function () {
+            if (typeof chartInstances === "object" && chartInstances !== null && Object.keys(chartInstances).length > 0) {
+                Object.values(chartInstances).forEach(function (chart) {
+                    if (chart && typeof chart.resize === "function") {
+                        try {
+                            chart.resize();
+                        } catch (e) {}
+                    }
+                });
+            }
             if (currentTrendData && currentTrendData.charts) {
                 renderTrendCharts(currentTrendData.charts);
             }
