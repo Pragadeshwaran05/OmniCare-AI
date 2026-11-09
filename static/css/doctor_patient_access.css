@@ -731,3 +731,321 @@
         font-size: 18px;
     }
 }
+
+/* =========================================================
+   ACCESS OPTIONS & DOCTOR OTP MODAL STYLES
+   ========================================================= */
+
+.access-options-section {
+    margin-top: 24px;
+    text-align: left;
+}
+
+.options-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #087f7a;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+
+.patient-action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.access-option-box {
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+}
+
+.access-option-box:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.access-option-box.otp-box {
+    background: #f0fdfa;
+    border-color: #99f6e4;
+}
+
+.access-option-box.otp-box:hover {
+    border-color: #5eead4;
+}
+
+.option-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.option-icon {
+    font-size: 24px;
+    line-height: 1;
+}
+
+.option-header h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.access-option-box.otp-box .option-header h4 {
+    color: #0f766e;
+}
+
+.option-header p {
+    font-size: 12.5px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.instant-otp-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #0d9488, #0f766e);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(13, 148, 136, 0.25);
+    transition: all 0.2s;
+}
+
+.instant-otp-btn:hover {
+    background: linear-gradient(135deg, #0f766e, #115e59);
+    transform: translateY(-1px);
+}
+
+.sub-actions-row {
+    text-align: center;
+    margin-top: 12px;
+}
+
+.view-details-sublink {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0d9488;
+    text-decoration: none;
+}
+
+.view-details-sublink:hover {
+    text-decoration: underline;
+}
+
+/* Modal */
+.doctor-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    z-index: 9999;
+}
+
+.doctor-modal-card {
+    background: white;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 480px;
+    padding: 24px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.2);
+    border: 1px solid #e2e8f0;
+}
+
+.doctor-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 18px;
+}
+
+.doctor-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.doctor-modal-title h3 {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1e1b4b;
+}
+
+.modal-sub {
+    font-size: 12px;
+    color: #0d9488;
+    font-weight: 600;
+}
+
+.doctor-modal-close {
+    background: #f1f5f9;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.doc-modal-body p {
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.doc-alert {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 14px;
+}
+
+.doc-alert-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+}
+
+.doc-alert-success {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #047857;
+}
+
+.doc-otp-sent-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #f0fdfa;
+    border: 1px solid #99f6e4;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+}
+
+.doc-otp-sent-banner span {
+    font-size: 24px;
+}
+
+.doc-otp-sent-banner p {
+    margin: 0;
+    font-size: 12.5px;
+    color: #0f766e;
+}
+
+.doc-otp-sent-banner strong {
+    font-size: 14px;
+    color: #115e59;
+}
+
+.doc-instruction-text {
+    font-size: 13px;
+    color: #047857;
+    font-weight: 600;
+    margin-bottom: 14px;
+}
+
+.otp-input-box {
+    text-align: center;
+    margin-bottom: 14px;
+}
+
+.otp-input-box label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.otp-input-box input {
+    font-size: 28px;
+    letter-spacing: 10px;
+    text-align: center;
+    padding: 10px 14px;
+    border: 2px solid #0d9488;
+    border-radius: 10px;
+    width: 220px;
+    font-weight: 800;
+    color: #0f766e;
+}
+
+.otp-timer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 220px;
+    margin: 0 auto 16px;
+    font-size: 12.5px;
+}
+
+.timer-text {
+    color: #64748b;
+}
+
+.timer-text strong {
+    color: #0d9488;
+}
+
+.btn-resend {
+    background: none;
+    border: none;
+    color: #0d9488;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 12.5px;
+}
+
+.doc-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.btn-primary {
+    padding: 10px 20px;
+    background: #0d9488;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13.5px;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background: #0f766e;
+}
+
+@media (max-width: 700px) {
+    .patient-action-grid {
+        grid-template-columns: 1fr;
+    }
+}

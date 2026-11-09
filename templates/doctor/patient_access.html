@@ -1,125 +1,914 @@
 {% extends "doctor_base.html" %}
+
 {% block content %}
 
+
+
 <link rel="stylesheet"
+
       href="{{ url_for('static', filename='css/doctor_patient_access.css') }}">
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js">
+
+document.addEventListener("DOMContentLoaded", function() {
+
+    const btn = document.getElementById("btnStartDoctorOtp");
+
+    if (btn) {
+
+        btn.addEventListener("click", function() {
+
+            openDoctorOtpModal(this.dataset.patientId, this.dataset.patientName);
+
+        });
+
+    }
+
+
+
+    const modal = document.getElementById("doctorOtpModal");
+
+    if (modal) {
+
+        modal.addEventListener("click", function(e) {
+
+            if (e.target === this) closeDoctorOtpModal();
+
+        });
+
+    }
+
+
+
+    document.addEventListener("keydown", function(e) {
+
+        if (e.key === "Escape") {
+
+            closeDoctorOtpModal();
+
+        }
+
+    });
+
+});
+
+
+
+</script>
+
+<script type="text/javascript" src="https://verify.msg91.com/otp-provider.js">
+
+document.addEventListener("DOMContentLoaded", function() {
+
+    const btn = document.getElementById("btnStartDoctorOtp");
+
+    if (btn) {
+
+        btn.addEventListener("click", function() {
+
+            openDoctorOtpModal(this.dataset.patientId, this.dataset.patientName);
+
+        });
+
+    }
+
+
+
+    const modal = document.getElementById("doctorOtpModal");
+
+    if (modal) {
+
+        modal.addEventListener("click", function(e) {
+
+            if (e.target === this) closeDoctorOtpModal();
+
+        });
+
+    }
+
+
+
+    document.addEventListener("keydown", function(e) {
+
+        if (e.key === "Escape") {
+
+            closeDoctorOtpModal();
+
+        }
+
+    });
+
+});
+
+
+
+</script>
+
+
+
 
 
 <div class="patient-access-page">
+
 {% with messages = get_flashed_messages(with_categories=true) %}
+
     {% if messages %}
+
         <div class="access-status-container">
+
+
 
             {% for category, message in messages %}
 
+
+
                 {% if category == "success" %}
+
+
 
                     <div class="access-success-card">
 
+
+
                         <div class="success-check">
+
                             ✓
+
                         </div>
+
+
 
                         <div class="success-content">
 
+
+
                             <h3>
+
                                 Access Request Sent
+
                             </h3>
 
+
+
                             <p>
-                                Your request has been sent to the patient.
+
+                                {{ message }}
+
                             </p>
 
+
+
                             <div class="success-status">
+
                                 <span class="status-dot"></span>
+
                                 Waiting for Patient Approval
+
                             </div>
+
+
 
                         </div>
 
+
+
                     </div>
+
+
 
                 {% elif category == "info" %}
 
+
+
                     <div class="access-info-card">
 
+
+
                         <div class="info-icon">
+
                             ℹ
+
                         </div>
+
+
 
                         <div>
-                            <h3>Access Already Exists</h3>
+
+                            <h3>Access Status</h3>
+
                             <p>{{ message }}</p>
+
                         </div>
 
+
+
                     </div>
+
+
 
                 {% elif category == "error" %}
 
+
+
                     <div class="access-error-card">
 
+
+
                         <div class="error-icon">
+
                             !
+
                         </div>
 
+
+
                         <div>
-                            <h3>Access Request Failed</h3>
+
+                            <h3>Access Request Notice</h3>
+
                             <p>{{ message }}</p>
+
+                        </div>
+
+
+
+                    </div>
+
+
+
+                {% endif %}
+
+
+
+            {% endfor %}
+
+
+
+        </div>
+
+    {% endif %}
+
+{% endwith %}
+
+    <!-- PAGE HEADER -->
+
+    <div class="page-header">
+
+        <span class="page-badge">DOCTOR PORTAL</span>
+
+
+
+        <h1>Patient Access & QR Scanner</h1>
+
+
+
+        <p>
+
+            Find a patient via Universal Health QR or Health ID to request authorized access or start an instant OTP consultation.
+
+        </p>
+
+    </div>
+
+
+
+
+
+    <!-- SEARCH CARD -->
+
+    <div class="access-card">
+
+
+
+        <div class="card-icon">
+
+            🔍
+
+        </div>
+
+
+
+        <div class="card-content">
+
+
+
+            <h2>Search Patient</h2>
+
+
+
+            <p>
+
+                Search using the patient's Health ID or Universal QR Identifier.
+
+            </p>
+
+
+
+            <form method="GET"
+
+                  action="{{ url_for('doctor_patient_access') }}"
+
+                  class="search-form">
+
+
+
+                <input
+
+                    type="text"
+
+                    name="identifier"
+
+                    placeholder="Enter Health ID (e.g. OMC-P1025) or QR Token"
+
+                    value="{{ identifier or health_id or '' }}"
+
+                    autocomplete="off"
+
+                >
+
+
+
+                <button type="submit">
+
+                    Search Patient
+
+                </button>
+
+
+
+            </form>
+
+
+
+        </div>
+
+
+
+    </div>
+
+
+
+ {% if patient %}
+
+
+
+    <div class="patient-result-card">
+
+
+
+        <div class="result-status">
+
+            ✓ Patient Identified
+
+        </div>
+
+
+
+        <div class="patient-result-header">
+
+
+
+            <div class="patient-avatar">
+
+                👤
+
+            </div>
+
+
+
+            <div>
+
+                <h2>
+
+                    {{ patient.get('full_name')
+
+                       or patient.get('name')
+
+                       or 'Not provided' }}
+
+                </h2>
+
+
+
+                <span>
+
+                    Health ID:
+
+                    <strong>
+
+                        {{ patient.get('health_id') or 'Not provided' }}
+
+                    </strong>
+
+                </span>
+
+            </div>
+
+
+
+        </div>
+
+
+
+
+
+        <div class="patient-details">
+
+
+
+            <div>
+
+                <span>Age</span>
+
+                <strong>
+
+                    {{ patient.get('age') or 'Not provided' }}
+
+                </strong>
+
+            </div>
+
+
+
+            <div>
+
+                <span>Gender</span>
+
+                <strong>
+
+                    {{ patient.get('gender') or 'Not provided' }}
+
+                </strong>
+
+            </div>
+
+
+
+            <div>
+
+                <span>Blood Group</span>
+
+                <strong>
+
+                    {{ patient.get('blood_group') or 'Not provided' }}
+
+                </strong>
+
+            </div>
+
+
+
+            <div>
+
+                <span>Registered Mobile</span>
+
+                <strong>
+
+                    {{ masked_phone or patient.get('phone') or 'Protected' }}
+
+                </strong>
+
+            </div>
+
+
+
+        </div>
+
+
+
+
+
+        <!-- PROTECTED RECORDS -->
+
+        <div class="protected-message">
+
+
+
+            <span>🔒</span>
+
+
+
+            <div>
+
+                <strong>Medical Records Protected</strong>
+
+
+
+                <p>
+
+                    Choose an authorized access method below. Medical records can only be accessed after patient consent.
+
+                </p>
+
+            </div>
+
+
+
+        </div>
+
+
+
+
+
+        <!-- ACCESS OPTIONS HEADER -->
+
+        <div class="access-options-section">
+
+            <h3 class="options-title">SELECT ACCESS METHOD:</h3>
+
+
+
+            <div class="patient-action-grid">
+
+
+
+                <!-- OPTION A: REUSE EXISTING REQUEST TEMPORARY ACCESS (MANDATORY) -->
+
+                <div class="access-option-box">
+
+                    <div class="option-header">
+
+                        <span class="option-icon">🔐</span>
+
+                        <div>
+
+                            <h4>Option A: Request Temporary Access</h4>
+
+                            <p>Sends notification to the patient's portal for formal review (Standard 4-hour or permanent access).</p>
+
                         </div>
 
                     </div>
 
-                {% endif %}
 
-            {% endfor %}
+
+                    <form method="POST"
+
+                          action="{{ url_for('doctor_request_access', patient_id=patient.get('id')) }}">
+
+                        <input type="hidden" name="health_id" value="{{ patient.get('health_id') or health_id }}">
+
+                        <button type="submit" class="request-access-btn">
+
+                            Send Portal Access Request
+
+                        </button>
+
+                    </form>
+
+                </div>
+
+
+
+                <!-- OPTION B: NEW OTP ACCESS (5-MINUTE READ-ONLY SESSION) -->
+
+                <div class="access-option-box otp-box">
+
+                    <div class="option-header">
+
+                        <span class="option-icon">⚡</span>
+
+                        <div>
+
+                            <h4>Option B: Instant OTP Access</h4>
+
+                            <p>Sends a 4-digit verification code to the patient's mobile for immediate 5-minute read-only consultation.</p>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <button type="button"
+
+                            id="btnStartDoctorOtp"
+
+                            class="instant-otp-btn"
+
+                            data-patient-id="{{ patient.get('id') }}"
+
+                            data-patient-name="{{ patient.get('full_name') or patient.get('name') or 'Patient' }}"
+
+                            onclick="openDoctorOtpModal(this.dataset.patientId, this.dataset.patientName)">
+
+                        ⚡ Start OTP Consultation
+
+                    </button>
+
+                </div>
+
+
+
+            </div>
+
+
+
+            <!-- VIEW BASIC DETAILS SUB-LINK -->
+
+            <div class="sub-actions-row">
+
+                <a href="{{ url_for('public_patient_info', patient_id=patient.get('id')) }}"
+
+                   class="view-details-sublink" target="_blank">
+
+                    👤 View Public Patient Information Card ↗
+
+                </a>
+
+            </div>
+
+
 
         </div>
-    {% endif %}
-{% endwith %}
-    <!-- PAGE HEADER -->
-    <div class="page-header">
-        <span class="page-badge">DOCTOR PORTAL</span>
 
-        <h1>Patient Access</h1>
 
-        <p>
-            Find a patient and request authorized temporary access
-            to their medical records.
-        </p>
+
     </div>
 
 
-    <!-- SEARCH CARD -->
-    <div class="access-card">
+
+    {% endif %}
+
+
+
+    <!-- DIVIDER -->
+
+    <div class="access-divider">
+
+        <span>OR SCAN QR CODE</span>
+
+    </div>
+
+
+
+
+
+    <!-- QR CARD -->
+
+    <div class="access-card qr-card">
+
+
 
         <div class="card-icon">
-            🔍
+
+            📷
+
         </div>
+
+
 
         <div class="card-content">
 
-            <h2>Search Patient</h2>
+
+
+            <h2>Scan Patient QR Code</h2>
+
+
 
             <p>
-                Search using the patient's Health ID.
+
+                Point your device camera at the patient's Universal OmniCare Health Card QR code.
+
             </p>
 
-            <form method="GET"
-                  action="{{ url_for('doctor_patient_access') }}"
-                  class="search-form">
 
-                <input
-                    type="text"
-                    name="health_id"
-                    placeholder="Enter Health ID"
-                     value="{{ health_id or '' }}"
-                    autocomplete="off"
-                >
 
-                <button type="submit">
-                    Search Patient
+            <button type="button"
+
+                    class="scan-qr-btn"
+
+                    onclick="startQRScanner()">
+
+
+
+                📷 Open Camera Scanner
+
+
+
+            </button>
+
+
+
+        </div>
+
+
+
+    </div>
+
+
+
+{% if error %}
+
+<div class="error-message">
+
+    ⚠️ {{ error }}
+
+</div>
+
+{% endif %}
+
+
+
+    <!-- QR SCANNER AREA -->
+
+    <div id="qrScannerContainer"
+
+         class="qr-scanner-container"
+
+         style="display: none;">
+
+
+
+        <div class="scanner-header">
+
+
+
+            <h2>Scan Patient Health QR</h2>
+
+
+
+            <button type="button"
+
+                    onclick="closeQRScanner()">
+
+                ✕
+
+            </button>
+
+
+
+        </div>
+
+
+
+        <div id="qr-reader"></div>
+
+
+
+        <p class="scanner-help">
+
+            Align the QR code within the frame. External and internal OmniCare QR codes are automatically decoded.
+
+        </p>
+
+
+
+    </div>
+
+
+
+</div>
+
+
+
+<!-- =========================================================
+
+     DOCTOR OTP ACCESS MODAL
+
+     ========================================================= -->
+
+<div id="doctorOtpModal" class="doctor-modal-overlay" style="display: none;">
+
+    <div class="doctor-modal-card">
+
+        <div class="doctor-modal-header">
+
+            <div class="doctor-modal-title">
+
+                <span class="modal-icon">⚡</span>
+
+                <div>
+
+                    <h3>Patient OTP Authorization</h3>
+
+                    <p class="modal-sub">5-Minute Instant Clinical Consultation</p>
+
+                </div>
+
+            </div>
+
+            <button type="button" class="doctor-modal-close" onclick="closeDoctorOtpModal()">✕</button>
+
+        </div>
+
+
+
+        <!-- STAGE 1: TRIGGER DISPATCH -->
+
+        <div id="docOtpStage1" class="doc-modal-body">
+
+            <p>
+
+                To access <strong><span id="docOtpPatientName">Patient</span>'s</strong> medical records, an authorization OTP will be sent to their registered contact.
+
+            </p>
+
+
+
+            <div id="docOtpError1" class="doc-alert doc-alert-error" style="display: none;"></div>
+
+
+
+            <div class="doc-modal-actions">
+
+                <button type="button" class="btn-cancel" onclick="closeDoctorOtpModal()">Cancel</button>
+
+                <button type="button" id="btnDocSendOtp" class="btn-primary" onclick="sendDoctorOtp()">
+
+                    📱 Send OTP to Patient
+
                 </button>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- STAGE 2: ENTER OTP -->
+
+        <div id="docOtpStage2" class="doc-modal-body" style="display: none;">
+            <div id="docOtpDemoBanner" class="doc-alert doc-alert-info" style="display: none; background: #e6fffa; border: 1px solid #319795; color: #234e52; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-weight: 600;"></div>
+
+
+            <div class="doc-otp-sent-banner">
+
+                <span>📱</span>
+
+                <div>
+
+                    <p>Authorization OTP sent to patient's verified contact:</p>
+
+                    <strong id="docOtpMaskedDest">+91 ******0000</strong>
+
+                </div>
+
+            </div>
+
+
+
+            <p class="doc-instruction-text">
+
+                Ask the patient to share the 4-digit code received on their phone.
+
+            </p>
+
+
+
+            <div id="docOtpError2" class="doc-alert doc-alert-error" style="display: none;"></div>
+
+            <div id="docOtpSuccess2" class="doc-alert doc-alert-success" style="display: none;"></div>
+
+
+
+            <form onsubmit="verifyDoctorOtp(event)">
+
+                <div class="otp-input-box">
+
+                    <label for="doctor_entered_otp">Enter 4-Digit OTP</label>
+
+                    <input type="text"
+
+                           id="doctor_entered_otp"
+
+                           maxlength="4"
+
+                           pattern="[0-9]{4}"
+
+                           inputmode="numeric"
+
+                           placeholder="• • • •"
+
+                           required
+
+                           autocomplete="off">
+
+                </div>
+
+
+
+                <div class="otp-timer-row">
+
+                    <span class="timer-text">⏱️ Expires in: <strong id="docOtpTimer">15:00</strong></span>
+
+                    <button type="button" id="btnDocResendOtp" class="btn-resend" onclick="sendDoctorOtp()">Resend OTP</button>
+
+                </div>
+
+
+
+                <div class="doc-modal-actions">
+
+                    <button type="button" class="btn-cancel" onclick="closeDoctorOtpModal()">Cancel</button>
+
+                    <button type="submit" id="btnDocVerifyOtp" class="btn-primary">
+
+                        ✓ Verify & Open Workspace
+
+                    </button>
+
+                </div>
 
             </form>
 
@@ -127,298 +916,627 @@
 
     </div>
 
- {% if patient %}
-
-    <div class="patient-result-card">
-
-        <div class="result-status">
-            ✓ Patient Identified
-        </div>
-
-        <div class="patient-result-header">
-
-            <div class="patient-avatar">
-                👤
-            </div>
-
-            <div>
-                <h2>
-                    {{ patient.get('full_name')
-                       or patient.get('name')
-                       or 'Not provided' }}
-                </h2>
-
-                <span>
-                    Health ID:
-                    <strong>
-                        {{ patient.get('health_id') or 'Not provided' }}
-                    </strong>
-                </span>
-            </div>
-
-        </div>
-
-
-        <div class="patient-details">
-
-            <div>
-                <span>Age</span>
-                <strong>
-                    {{ patient.get('age') or 'Not provided' }}
-                </strong>
-            </div>
-
-            <div>
-                <span>Gender</span>
-                <strong>
-                    {{ patient.get('gender') or 'Not provided' }}
-                </strong>
-            </div>
-
-            <div>
-                <span>Blood Group</span>
-                <strong>
-                    {{ patient.get('blood_group') or 'Not provided' }}
-                </strong>
-            </div>
-
-            <div>
-                <span>Phone</span>
-                <strong>
-                    {{ patient.get('phone')
-                       or patient.get('phone_number')
-                       or 'Not provided' }}
-                </strong>
-            </div>
-
-        </div>
-
-
-        <!-- PROTECTED RECORDS -->
-        <div class="protected-message">
-
-            <span>🔒</span>
-
-            <div>
-                <strong>Medical Records Protected</strong>
-
-                <p>
-                    Medical records can only be accessed
-                    after patient authorization.
-                </p>
-            </div>
-
-        </div>
-
-
-        <!-- REQUEST ACCESS -->
-       <div class="patient-action-buttons">
-
-    <!-- VIEW BASIC PATIENT DETAILS -->
-    <a href="{{ url_for(
-        'public_patient_info',
-        patient_id=patient.get('id')
-    ) }}"
-       class="view-details-btn">
-
-        👤 View Patient Details
-
-    </a>
-
-
-    <!-- REQUEST TEMPORARY ACCESS -->
-  <form method="POST"
-      action="{{ url_for(
-          'doctor_request_access',
-          patient_id=patient.get('id')
-      ) }}">
-
-    <input
-        type="hidden"
-        name="health_id"
-        value="{{ patient.get('health_id') or health_id }}"
-    >
-
-    <button type="submit"
-            class="request-access-btn">
-        🔐 Request Temporary Access
-    </button>
-
-</form>
-
 </div>
 
-    </div>
 
-    {% endif %}
-
-    <!-- DIVIDER -->
-    <div class="access-divider">
-        <span>OR</span>
-    </div>
-
-
-    <!-- QR CARD -->
-    <div class="access-card qr-card">
-
-        <div class="card-icon">
-            📷
-        </div>
-
-        <div class="card-content">
-
-            <h2>Scan Patient QR</h2>
-
-            <p>
-                Scan the patient's OmniCare Health ID QR code
-                to identify the patient.
-            </p>
-
-            <button type="button"
-                    class="scan-qr-btn"
-                    onclick="startQRScanner()">
-
-                📷 Scan QR Code
-
-            </button>
-
-        </div>
-
-    </div>
-
-{% if error %}
-<div class="error-message">
-    ⚠️ {{ error }}
-</div>
-{% endif %}
-    <!-- SEARCH RESULT -->
-   
-
-    <!-- QR SCANNER AREA -->
-    <div id="qrScannerContainer"
-         class="qr-scanner-container"
-         style="display: none;">
-
-        <div class="scanner-header">
-
-            <h2>Scan Patient QR</h2>
-
-            <button type="button"
-                    onclick="closeQRScanner()">
-                ✕
-            </button>
-
-        </div>
-
-        <div id="qr-reader"></div>
-
-        <p class="scanner-help">
-            Point the camera at the patient's OmniCare Health ID QR code.
-        </p>
-
-    </div>
-
-</div>
 
 
 
 <script>
+
 let html5QrCode = null;
+
 let scannerRunning = false;
 
+let currentPatientId = null;
+
+let currentChallengeId = null;
+
+let docOtpCountdown = null;
+
+let docSecondsRemaining = 900;
+
+
+
+function openDoctorOtpModal(patientId, patientName) {
+
+    currentPatientId = patientId;
+
+    document.getElementById("docOtpPatientName").textContent = patientName || "Patient";
+
+    document.getElementById("docOtpStage1").style.display = "block";
+
+    document.getElementById("docOtpStage2").style.display = "none";
+
+    document.getElementById("docOtpError1").style.display = "none";
+
+    document.getElementById("doctorOtpModal").style.display = "flex";
+
+}
+
+
+
+function closeDoctorOtpModal() {
+
+    document.getElementById("doctorOtpModal").style.display = "none";
+
+    if (docOtpCountdown) clearInterval(docOtpCountdown);
+
+}
+
+
+
+async function sendDoctorOtp() {
+
+    const btn = document.getElementById("btnDocSendOtp");
+
+    const errBox = document.getElementById("docOtpError1");
+
+    const errBox2 = document.getElementById("docOtpError2");
+
+    errBox.style.display = "none";
+
+    errBox2.style.display = "none";
+
+
+
+    btn.disabled = true;
+
+    btn.textContent = "Sending OTP...";
+
+
+
+    try {
+
+        const response = await fetch(`/doctor/patient-access/${encodeURIComponent(currentPatientId)}/send-otp`, {
+
+            method: "POST",
+
+            headers: { "Content-Type": "application/json" }
+
+        });
+
+        const data = await response.json();
+
+
+
+        if (data.success) {
+            currentChallengeId = data.challenge_id;
+            document.getElementById("docOtpMaskedDest").textContent = data.masked_destination;
+
+            const demoBanner = document.getElementById("docOtpDemoBanner");
+            if (data.is_demo_mode && data.demo_otp_notice) {
+                demoBanner.textContent = data.demo_otp_notice;
+                demoBanner.style.display = "block";
+            } else if (demoBanner) {
+                demoBanner.style.display = "none";
+            }
+
+            document.getElementById("docOtpStage1").style.display = "none";
+            document.getElementById("docOtpStage2").style.display = "block";
+            startDoctorOtpTimer(data.expires_in_seconds || 300);
+
+            document.getElementById("doctor_entered_otp").focus();
+
+        } else {
+
+            errBox.textContent = data.error || "Failed to dispatch OTP to patient.";
+
+            errBox.style.display = "block";
+
+        }
+
+    } catch (err) {
+
+        errBox.textContent = "Network error while requesting OTP.";
+
+        errBox.style.display = "block";
+
+    } finally {
+
+        btn.disabled = false;
+
+        btn.textContent = "📱 Send OTP to Patient";
+
+    }
+
+}
+
+
+
+function startDoctorOtpTimer(seconds) {
+
+    if (docOtpCountdown) clearInterval(docOtpCountdown);
+
+    docSecondsRemaining = seconds || 300;
+
+    const timerElem = document.getElementById("docOtpTimer");
+
+
+
+    function tick() {
+
+        const m = Math.floor(docSecondsRemaining / 60);
+
+        const s = docSecondsRemaining % 60;
+
+        timerElem.textContent = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+
+        if (docSecondsRemaining <= 0) {
+
+            clearInterval(docOtpCountdown);
+
+            const err2 = document.getElementById("docOtpError2");
+
+            err2.textContent = "OTP expired. Please click Resend OTP.";
+
+            err2.style.display = "block";
+
+        }
+
+        docSecondsRemaining--;
+
+    }
+
+
+
+    tick();
+
+    docOtpCountdown = setInterval(tick, 1000);
+
+}
+
+
+
+async function verifyDoctorOtp(event) {
+
+    event.preventDefault();
+
+    const btn = document.getElementById("btnDocVerifyOtp");
+
+    const errBox = document.getElementById("docOtpError2");
+
+    const successBox = document.getElementById("docOtpSuccess2");
+
+    errBox.style.display = "none";
+
+    successBox.style.display = "none";
+
+
+
+    const enteredOtp = document.getElementById("doctor_entered_otp").value.trim();
+
+    if (enteredOtp.length !== 4) {
+
+        errBox.textContent = "Please enter a valid 4-digit OTP.";
+
+        errBox.style.display = "block";
+
+        return;
+
+    }
+
+
+
+    btn.disabled = true;
+
+    btn.textContent = "Verifying...";
+
+
+
+    try {
+
+        const response = await fetch(`/doctor/patient-access/${encodeURIComponent(currentPatientId)}/verify-otp`, {
+
+            method: "POST",
+
+            headers: { "Content-Type": "application/json" },
+
+            body: JSON.stringify({
+
+                challenge_id: currentChallengeId,
+
+                otp_code: enteredOtp
+
+            })
+
+        });
+
+        const data = await response.json();
+
+
+
+        if (data.success) {
+
+            successBox.textContent = "✓ Verified! Opening Patient Workspace in 5-minute read-only mode...";
+
+            successBox.style.display = "block";
+
+            if (docOtpCountdown) clearInterval(docOtpCountdown);
+
+            setTimeout(() => {
+
+                window.location.href = data.redirect_url;
+
+            }, 800);
+
+        } else {
+
+            errBox.textContent = data.error || "Incorrect OTP. Please try again.";
+
+            errBox.style.display = "block";
+
+        }
+
+    } catch (err) {
+
+        errBox.textContent = "Network error during OTP verification.";
+
+        errBox.style.display = "block";
+
+    } finally {
+
+        btn.disabled = false;
+
+        btn.textContent = "✓ Verify & Open Workspace";
+
+    }
+
+}
+
+
+
+
+
+// ============================================================
+
+// MSG91 OTP WIDGET INTEGRATION
+
+// ============================================================
+
+const msg91WidgetId = {{ (msg91_widget_id or "")|tojson|safe }};
+
+const msg91TokenAuth = {{ (msg91_token_auth or "")|tojson|safe }};
+
+
+
+if (typeof initSendOTP !== "undefined" && msg91WidgetId && msg91TokenAuth) {
+
+    try {
+
+        window.msg91Config = {
+
+            widgetId: msg91WidgetId,
+
+            tokenAuth: msg91TokenAuth,
+
+            exposeMethods: true,
+
+            success: async (tokenData) => {
+
+                console.log("MSG91 Widget verification success:", tokenData);
+
+                const token = typeof tokenData === "string" ? tokenData : ((tokenData && (tokenData["access-token"] || tokenData.message)) || "");
+
+                if (token && currentPatientId) {
+
+                    await verifyDoctorOtpWithToken(token);
+
+                }
+
+            },
+
+            failure: (err) => {
+
+                console.warn("MSG91 Widget failure:", err);
+
+            }
+
+        };
+
+        initSendOTP(window.msg91Config);
+
+    } catch (e) {
+
+        console.warn("MSG91 initSendOTP notice:", e);
+
+    }
+
+}
+
+
+
+async function verifyDoctorOtpWithToken(accessToken) {
+
+    const successBox = document.getElementById("docOtpSuccess2");
+
+    const errBox = document.getElementById("docOtpError2");
+
+    errBox.style.display = "none";
+
+
+
+    try {
+
+        const response = await fetch(`/doctor/patient-access/${encodeURIComponent(currentPatientId)}/verify-otp`, {
+
+            method: "POST",
+
+            headers: { "Content-Type": "application/json" },
+
+            body: JSON.stringify({
+
+                access_token: accessToken
+
+            })
+
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+
+            successBox.textContent = "✓ Verified via MSG91! Opening Patient Workspace in 5-minute read-only mode...";
+
+            successBox.style.display = "block";
+
+            if (docOtpCountdown) clearInterval(docOtpCountdown);
+
+            setTimeout(() => {
+
+                window.location.href = data.redirect_url;
+
+            }, 800);
+
+        } else {
+
+            errBox.textContent = data.error || "Token verification failed.";
+
+            errBox.style.display = "block";
+
+        }
+
+    } catch (err) {
+
+        errBox.textContent = "Network error during token verification.";
+
+        errBox.style.display = "block";
+
+    }
+
+}
+
+
+
 async function startQRScanner() {
+
     const container = document.getElementById("qrScannerContainer");
 
     container.style.display = "block";
 
-    container.scrollIntoView({
-        behavior: "smooth"
-    });
+    container.scrollIntoView({ behavior: "smooth" });
+
+
 
     if (typeof Html5Qrcode === "undefined") {
+
         alert("QR scanner library failed to load. Please refresh the page.");
+
         return;
+
     }
+
+
 
     if (scannerRunning) return;
 
     html5QrCode = new Html5Qrcode("qr-reader");
 
+
+
     try {
+
         await html5QrCode.start(
+
             { facingMode: "environment" },
+
             {
+
                 fps: 10,
+
                 qrbox: { width: 250, height: 250 }
+
             },
+
             async (decodedText) => {
+
                 if (!scannerRunning && html5QrCode) return;
 
                 scannerRunning = false;
 
+
+
                 try {
+
                     await html5QrCode.stop();
+
                     await html5QrCode.clear();
+
                 } catch (error) {
+
                     console.error("Scanner stop error:", error);
+
                 }
+
+
 
                 container.style.display = "none";
 
-                let healthId = decodedText.trim();
 
-                // Support QR codes containing a URL
+
+                let raw = decodedText.trim();
+
+                let identifier = raw;
+
+
+
+                // Support QR codes containing canonical URL https://domain/qr/<token>
+
+                // or legacy URL https://domain/patient-info/<patient_id>
+
                 try {
-                    const url = new URL(decodedText);
-                    healthId =
-                        url.searchParams.get("health_id") ||
-                        url.searchParams.get("patient_id") ||
-                        decodedText.trim();
+
+                    const url = new URL(raw);
+
+                    const pathParts = url.pathname.split('/').filter(Boolean);
+
+                    if (pathParts.length >= 2 && pathParts[0] === 'qr') {
+
+                        identifier = pathParts[1];
+
+                    } else if (pathParts.length >= 2 && pathParts[0] === 'patient-info') {
+
+                        identifier = pathParts[1];
+
+                    } else if (url.searchParams.get("identifier")) {
+
+                        identifier = url.searchParams.get("identifier");
+
+                    } else if (url.searchParams.get("health_id")) {
+
+                        identifier = url.searchParams.get("health_id");
+
+                    } else if (url.searchParams.get("qr_token")) {
+
+                        identifier = url.searchParams.get("qr_token");
+
+                    } else if (url.searchParams.get("patient_id")) {
+
+                        identifier = url.searchParams.get("patient_id");
+
+                    }
+
                 } catch (error) {
-                    // QR contains a plain Health ID
+
+                    // Raw string
+
                 }
 
-                // Search using the existing patient search route
+
+
                 window.location.href =
+
                     "{{ url_for('doctor_patient_access') }}" +
-                    "?health_id=" + encodeURIComponent(healthId);
+
+                    "?identifier=" + encodeURIComponent(identifier);
+
             },
+
             (errorMessage) => {
+
                 // Ignore normal scanning errors
+
             }
+
         );
+
+
 
         scannerRunning = true;
 
+
+
     } catch (error) {
+
         console.error("Camera error:", error);
 
-        alert(
-            "Unable to access camera. Please allow camera permission " +
-            "and try again."
-        );
+        alert("Unable to access camera. Please allow camera permission and try again.");
 
         container.style.display = "none";
+
     }
+
 }
 
+
+
 async function closeQRScanner() {
+
     const container = document.getElementById("qrScannerContainer");
 
     if (html5QrCode && scannerRunning) {
+
         try {
+
             await html5QrCode.stop();
+
             await html5QrCode.clear();
+
         } catch (error) {
+
             console.error("Scanner close error:", error);
+
         }
+
     }
 
     scannerRunning = false;
+
     html5QrCode = null;
+
     container.style.display = "none";
+
 }
+
+
+
+document.addEventListener("DOMContentLoaded", function() {
+
+    const btn = document.getElementById("btnStartDoctorOtp");
+
+    if (btn) {
+
+        btn.addEventListener("click", function() {
+
+            openDoctorOtpModal(this.dataset.patientId, this.dataset.patientName);
+
+        });
+
+    }
+
+
+
+    const modal = document.getElementById("doctorOtpModal");
+
+    if (modal) {
+
+        modal.addEventListener("click", function(e) {
+
+            if (e.target === this) closeDoctorOtpModal();
+
+        });
+
+    }
+
+
+
+    document.addEventListener("keydown", function(e) {
+
+        if (e.key === "Escape") {
+
+            closeDoctorOtpModal();
+
+        }
+
+    });
+
+});
+
+
+
 </script>
 
 
+
 {% endblock %}
+

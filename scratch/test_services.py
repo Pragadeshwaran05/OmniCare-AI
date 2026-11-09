@@ -1,53 +1,58 @@
-import sys
-sys.path.insert(0, '.')
-from datetime import datetime
-from services.medical_record_normalizer import (
-    parse_strict_date, format_iso_date, extract_followup_date, normalize_numeric_value
+import sys, os
+sys.path.insert(0, os.path.abspath('.'))
+
+from services.msg91_otp_service import MSG91OTPService, mask_phone_number, mask_email_address
+from services.external_consultation_service import ExternalConsultationService
+
+print("Testing MSG91OTPService and ExternalConsultationService...")
+
+# 1. Test masking
+assert mask_phone_number("9876543210") == "******3210"
+assert mask_phone_number("+91 9876543210") == "+91 ******3210"
+assert mask_email_address("testpatient@omnicare.ai") == "t*********t@omnicare.ai"
+
+# 2. Test QR token generation
+token1 = ExternalConsultationService.get_or_create_qr_token("p_test_123", health_id="OMC-P9999")
+assert token1.startswith("OMC-QR-")
+token2 = ExternalConsultationService.get_or_create_qr_token("p_test_123")
+assert token1 == token2, "Token should be idempotent per patient"
+
+# 3. Test token resolution
+resolved = ExternalConsultationService.resolve_qr_token(token1)
+assert resolved is not None
+assert resolved["patient_id"] == "p_test_123"
+
+# 4. Test OTP dispatch in dev mode
+success, msg, meta = MSG91OTPService.request_otp(
+    patient_id="p_test_123",
+    patient_phone="9876543210",
+    patient_email="test@example.com",
+    visitor_name="Dr. External Smith",
+    consultation_type="Test Consultation"
 )
-from services.clinical_rules_engine import evaluate_investigation, check_followup_overdue
-from services.clinical_copilot_service import get_clinical_briefing
-from services.clinical_query_service import execute_clinical_query
-from utils.supabase_client import supabase
+assert success, f"Failed OTP dispatch: {msg}"
+challenge_id = meta["challenge_id"]
 
-print("=== 1. TEST NORMALIZER ===")
-assert format_iso_date("15-10-2026") == "2026-10-15", f"Got {format_iso_date('15-10-2026')}"
-assert format_iso_date("09 Oct 2026") == "2026-10-09"
-assert format_iso_date("2026-10-02T16:07:33Z") == "2026-10-02"
-assert format_iso_date("31-02-2026") is None
-print("Normalizer date tests passed!")
+# 5. Check active challenge in service
+from services.msg91_otp_service import _ACTIVE_OTP_CHALLENGES
+challenge = _ACTIVE_OTP_CHALLENGES[challenge_id]
+# Verify wrong otp
+wrong_verified, wrong_msg, _ = MSG91OTPService.verify_otp(challenge_id, "p_test_123", "000000")
+assert not wrong_verified
+assert "Incorrect OTP" in wrong_msg
 
-f_dt = extract_followup_date("09 Oct 2026 (After 7 days) or SOS if breathlessness occurs.")
-assert f_dt == datetime(2026, 10, 9), f"Got {f_dt}"
-print("Follow-up date extraction passed!")
+# 6. Test session creation and expiration
+sess = ExternalConsultationService.create_session(
+    patient_id="p_test_123",
+    visitor_details={"full_name": "Dr. External Smith", "role": "Doctor", "hospital_name": "Apollo"}
+)
+assert sess["status"] == "active"
+assert sess["read_only"] is True
 
-print("\n=== 2. TEST RULES ENGINE ===")
-inv_eval = evaluate_investigation("Fasting Blood Glucose", "142", "mg/dL")
-assert inv_eval["is_abnormal"] is True
-assert inv_eval["status"] == "high"
-print("Investigation evaluation passed:", inv_eval["explanation"])
+# Test revoke
+revoked, r_msg = ExternalConsultationService.revoke_session(sess["session_id"], "p_test_123")
+assert revoked
+sess_after = ExternalConsultationService.get_session(sess["session_id"])
+assert sess_after["status"] == "revoked"
 
-f_check = check_followup_overdue("2026-10-09", datetime(2026, 10, 24))
-assert f_check["is_overdue"] is True
-assert f_check["days_overdue"] == 15
-print("Overdue follow-up evaluation passed:", f_check)
-
-print("\n=== 3. TEST BRIEFING WITH REAL DOCTOR ===")
-doc_id = "ea83806c-f033-4012-944b-22098514d9e9"
-briefing = get_clinical_briefing(doc_id, supabase)
-print("Scope authorized count:", briefing["scope"]["authorized_patient_count"])
-print("Abnormal reports count:", len(briefing["abnormal_reports"]))
-print("Overdue followups count:", len(briefing["overdue_followups"]))
-print("Worsening trends count:", len(briefing["worsening_trends"]))
-print("Medication safety conflicts:", briefing["medication_safety"]["total_conflicts"])
-
-print("\n=== 4. TEST QUERY SERVICE ===")
-q_res1 = execute_clinical_query(doc_id, "Show overdue follow-ups", supabase)
-print("Q1 Overdue follow-ups answer:", q_res1["answer"])
-print("Q1 results count:", len(q_res1["results"]))
-print("Q1 sources count:", len(q_res1["sources"]))
-
-q_res2 = execute_clinical_query(doc_id, "Which patients are taking Augmentin?", supabase)
-print("Q2 Augmentin answer:", q_res2["answer"])
-print("Q2 results count:", len(q_res2["results"]))
-
-print("\nALL VERIFICATIONS SUCCEEDED!")
+print("All Services tests passed successfully!")

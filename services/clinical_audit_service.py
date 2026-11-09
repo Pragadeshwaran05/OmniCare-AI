@@ -48,7 +48,16 @@ ACTION_LABELS = {
     "CREDENTIAL_DOCUMENT_DELETED": "Credential Document Deleted",
     "DOCTOR_PASSWORD_CHANGED": "Doctor Password Changed",
     "DOCTOR_SETTINGS_UPDATED": "Doctor Settings Updated",
-    "DOCTOR_ACCOUNT_DEACTIVATED": "Doctor Account Deactivated"
+    "DOCTOR_ACCOUNT_DEACTIVATED": "Doctor Account Deactivated",
+    "EXTERNAL_CONSULTATION_REQUESTED": "External Consultation Requested",
+    "EXTERNAL_CONSULTATION_OTP_SENT": "Patient OTP Dispatched",
+    "EXTERNAL_CONSULTATION_OTP_VERIFIED": "Patient OTP Verified",
+    "EXTERNAL_CONSULTATION_SESSION_STARTED": "External Consultation Session Started",
+    "EXTERNAL_CONSULTATION_RECORD_VIEWED": "External Consultation Record Viewed",
+    "EXTERNAL_CONSULTATION_SESSION_REVOKED": "External Consultation Session Revoked",
+    "EXTERNAL_CONSULTATION_SESSION_EXPIRED": "External Consultation Session Expired",
+    "INTERNAL_QR_SCAN": "Internal QR Code Scanned",
+    "INTERNAL_OTP_ACCESS_GRANTED": "Doctor OTP Access Granted"
 }
 
 

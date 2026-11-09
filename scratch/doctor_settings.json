@@ -1,10 +1,10 @@
 {
   "ea83806c-f033-4012-944b-22098514d9e9": {
-    "theme": "system",
-    "sidebar_mode": "expanded",
+    "theme": "dark",
+    "sidebar_mode": "compact",
     "notify_access_requests": true,
     "notify_access_expiry": true,
     "notify_system_updates": false,
-    "updated_at": "2026-11-07T14:17:18.362585+00:00"
+    "updated_at": "2026-11-08T16:30:15.953964+00:00"
   }
 }

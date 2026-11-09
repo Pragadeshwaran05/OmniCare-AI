@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Information - OmniCare AI</title>
+    <link rel="stylesheet" href="/static/css/public_patient_info.css">
+    <script type="text/javascript" src="https://verify.msg91.com/otp-provider.js">
+document.addEventListener("DOMContentLoaded", function() {
+    const btn = document.getElementById("btnRequestConsultation");
+    if (btn) {
+        btn.addEventListener("click", openConsultationModal);
+    }
+
+    const modal = document.getElementById("consultationModal");
+    if (modal) {
+        modal.addEventListener("click", function(e) {
+            if (e.target === this) closeConsultationModal();
+        });
+    }
+
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") {
+            closeConsultationModal();
+        }
+    });
+});
+
+</script>
+</head>
+<body>
+
+    <div class="patient-info-wrapper">
+        <div class="patient-info-card">
+
+            <!-- HEADER -->
+            <div class="card-header">
+                <div class="brand-logo">
+                    <span class="brand-icon">♥</span> OmniCare <span>AI</span>
+                </div>
+                <div class="brand-tagline">
+                    Your Health, Always Connected
+                </div>
+            </div>
+
+            <!-- STATUS BADGE -->
+            <div class="status-badge-container">
+                <div class="status-badge">
+                    <span class="check-icon">✓</span> Verified OmniCare Patient
+                </div>
+            </div>
+
+            <!-- PATIENT IDENTITY -->
+            <div class="patient-identity-section">
+                <h1 class="patient-name">
+                    Test Patient
+                </h1>
+                <div class="health-id-badge">
+                    Health ID: <strong>OMC-P1000</strong>
+                </div>
+            </div>
+
+            <hr class="section-divider">
+
+            <!-- BASIC CLINICAL PROFILE (SAFE PUBLIC ATTRIBUTES ONLY) -->
+            <div class="info-section">
+                <h2 class="section-title">CLINICAL PROFILE SUMMARY</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Age</span>
+                        <span class="info-value">30 Years</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Gender</span>
+                        <span class="info-value">Male</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Blood Group</span>
+                        <span class="info-value">O+</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Emergency Protocol</span>
+                        <span class="info-value">Protected & Active</span>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="section-divider">
+
+            <!-- STRICT PRIVACY NOTICE -->
+            <div class="privacy-notice-box">
+                <div class="privacy-icon">🛡️</div>
+                <div class="privacy-text-area">
+                    <h3>Protected Health Information (HIPAA / GDPR Compliant)</h3>
+                    <p>
+                        To protect patient confidentiality, contact numbers, full addresses, and clinical medical histories are private and never exposed publicly.
+                    </p>
+                </div>
+            </div>
+
+            <!-- MEDICAL RECORDS PROTECTED CARD -->
+            <div class="protected-card">
+                <div class="lock-icon">🔒</div>
+                <h3 class="protected-title">Medical Records Protected</h3>
+                <p class="protected-text">
+                    All medical timelines, AI diagnostics, clinical reports, and prescriptions require verified patient consent via OTP.
+                </p>
+                
+                <!-- EXTERNAL CONSULTATION ACTION BUTTON -->
+                <div class="consultation-action-container">
+                    <button type="button" id="btnRequestConsultation" class="btn-external-consultation" onclick="openConsultationModal()">
+                        🩺 Request External Consultation Access
+                    </button>
+                    <p class="consultation-subtext">
+                        For attending physicians and emergency responders. Requires patient mobile OTP confirmation.
+                    </p>
+                </div>
+            </div>
+
+            <hr class="section-divider">
+
+            <!-- INVITATION TO JOIN OMNICARE AI -->
+            <div class="invitation-section">
+                <h4>Are you a Healthcare Provider or Patient?</h4>
+                <p>Join OmniCare AI to manage lifetime health records with unified QR IDs, AI clinical timelines, and instant emergency consent.</p>
+                <div class="invitation-buttons">
+                    <a href="/doctor/register" class="btn-invite-doctor">Register as Doctor</a>
+                    <a href="/patient/register" class="btn-invite-patient">Create Patient Account</a>
+                </div>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="card-footer">
+                OmniCare AI Healthcare Platform • Encrypted • Consent-Driven
+            </div>
+
+        </div>
+    </div>
+
+    <!-- =========================================================
+         EXTERNAL CONSULTATION MODAL
+         ========================================================= -->
+    <div id="consultationModal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">🩺</span>
+                    <div>
+                        <h2>External Consultation</h2>
+                        <p class="modal-subtitle">5-Minute Authorized Clinical Record Access</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close-btn" onclick="closeConsultationModal()">✕</button>
+            </div>
+
+            <!-- STEP 1: VISITOR IDENTIFICATION FORM -->
+            <div id="modalStep1" class="modal-step-content">
+                <p class="step-description">
+                    Please provide your details. An authorization OTP will be dispatched immediately to the <strong>patient's verified contact</strong> for consent.
+                </p>
+
+                <div id="formErrorMessage" class="modal-alert modal-alert-error" style="display: none;"></div>
+
+                <form id="consultationForm" onsubmit="handleRequestConsultation(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="visitor_name">Full Name <span class="required">*</span></label>
+                            <input type="text" id="visitor_name" name="visitor_name" placeholder="Dr. or Visitor Name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="visitor_mobile">Your Mobile Number <span class="required">*</span></label>
+                            <input type="tel" id="visitor_mobile" name="visitor_mobile" placeholder="10-digit mobile number" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="visitor_age">Your Age <span class="required">*</span></label>
+                            <input type="number" id="visitor_age" name="visitor_age" placeholder="Age in years" min="18" max="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="visitor_role">Your Role <span class="required">*</span></label>
+                            <select id="visitor_role" name="visitor_role" onchange="toggleDoctorFields()" required>
+                                <option value="Doctor">Doctor / Physician</option>
+                                <option value="Other Visitor">Other Healthcare Visitor / Specialist</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- DOCTOR SPECIFIC FIELDS -->
+                    <div id="doctorFieldsSection" class="doctor-fields-box">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="hospital_name">Hospital / Clinic Name <span class="required">*</span></label>
+                                <input type="text" id="hospital_name" name="hospital_name" placeholder="Hospital or Clinic Name">
+                            </div>
+                            <div class="form-group">
+                                <label for="location">Location / City <span class="required">*</span></label>
+                                <input type="text" id="location" name="location" placeholder="City or District">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="qualification">Qualification / Specialisation</label>
+                                <input type="text" id="qualification" name="qualification" placeholder="e.g. MBBS, MD (General Medicine)">
+                            </div>
+                            <div class="form-group">
+                                <label for="visitor_email">Email Address (Optional)</label>
+                                <input type="email" id="visitor_email" name="visitor_email" placeholder="doctor@hospital.org">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="medical_registration_number">Medical Registration Number</label>
+                            <input type="text" id="medical_registration_number" name="medical_registration_number" placeholder="State / National Council Reg No">
+                            <span class="field-hint">
+                                Note: National medical registry integration is unverified. This session will be categorized as <strong>Unverified External Doctor</strong>.
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="privacy-consent-notice">
+                        ℹ️ <strong>Patient Security:</strong> The authorization code is delivered strictly to the patient's registered phone or email, never to the attending visitor.
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" onclick="closeConsultationModal()">Cancel</button>
+                        <button type="submit" id="btnSubmitConsultation" class="btn-confirm">
+                            <span>Send Patient OTP</span> →
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- STEP 2: PATIENT OTP VERIFICATION -->
+            <div id="modalStep2" class="modal-step-content" style="display: none;">
+                <div class="otp-instruction-card">
+                    <div class="otp-phone-icon">📱</div>
+                    <h3>Consent OTP Dispatched</h3>
+                    <p>
+                        An authorization code has been sent to the patient's:
+                        <strong id="maskedDestinationText" class="masked-dest-badge">+91 ******0000</strong>
+                    </p>
+                    <p class="patient-instruction">
+                        Please ask the patient for the 4-digit OTP displayed on their device.
+                    </p>
+                </div>
+
+                <div id="otpErrorMessage" class="modal-alert modal-alert-error" style="display: none;"></div>
+                <div id="otpSuccessMessage" class="modal-alert modal-alert-success" style="display: none;"></div>
+
+                <form id="otpVerifyForm" onsubmit="handleVerifyOTP(event)">
+                    <input type="hidden" id="challenge_id" name="challenge_id" value="">
+
+                    <div class="otp-input-container">
+                        <label for="otp_code">Enter 4-Digit OTP</label>
+                        <input type="text" id="otp_code" name="otp_code" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" placeholder="• • • •" required autocomplete="one-time-code">
+                    </div>
+
+                    <div class="otp-meta-row">
+                        <span class="otp-timer">⏱️ OTP Expires in: <strong id="otpCountdown">15:00</strong></span>
+                        <button type="button" id="btnResendOTP" class="btn-resend-link" onclick="handleResendOTP()">Resend OTP</button>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" onclick="backToStep1()">← Back</button>
+                        <button type="submit" id="btnVerifyOTP" class="btn-confirm">
+                            <span>Verify & Open Workspace</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        const qrIdentifier = "OMC-QR-38A73F512A18DAF7";
+        const patientId = "11111111-2222-3333-4444-555555555555";
+        let activeChallengeId = null;
+        let countdownTimer = null;
+        let countdownSeconds = 900;
+
+        function openConsultationModal() {
+            document.getElementById('consultationModal').style.display = 'flex';
+            document.getElementById('modalStep1').style.display = 'block';
+            document.getElementById('modalStep2').style.display = 'none';
+            document.getElementById('formErrorMessage').style.display = 'none';
+        }
+
+        function closeConsultationModal() {
+            document.getElementById('consultationModal').style.display = 'none';
+            if (countdownTimer) clearInterval(countdownTimer);
+        }
+
+        function toggleDoctorFields() {
+            const role = document.getElementById('visitor_role').value;
+            const docSection = document.getElementById('doctorFieldsSection');
+            if (role === 'Doctor') {
+                docSection.style.display = 'block';
+            } else {
+                docSection.style.display = 'none';
+            }
+        }
+
+        function backToStep1() {
+            document.getElementById('modalStep1').style.display = 'block';
+            document.getElementById('modalStep2').style.display = 'none';
+            if (countdownTimer) clearInterval(countdownTimer);
+        }
+
+        function startOtpTimer(durationSeconds) {
+            if (countdownTimer) clearInterval(countdownTimer);
+            countdownSeconds = durationSeconds || 900;
+            const timerDisplay = document.getElementById('otpCountdown');
+
+            function updateDisplay() {
+                const m = Math.floor(countdownSeconds / 60);
+                const s = countdownSeconds % 60;
+                timerDisplay.textContent = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+                if (countdownSeconds <= 0) {
+                    clearInterval(countdownTimer);
+                    document.getElementById('otpErrorMessage').textContent = "OTP has expired. Please request a new OTP.";
+                    document.getElementById('otpErrorMessage').style.display = 'block';
+                }
+                countdownSeconds--;
+            }
+
+            updateDisplay();
+            countdownTimer = setInterval(updateDisplay, 1000);
+        }
+
+        async function handleRequestConsultation(event) {
+            event.preventDefault();
+            const btn = document.getElementById('btnSubmitConsultation');
+            const errorBox = document.getElementById('formErrorMessage');
+            errorBox.style.display = 'none';
+
+            btn.disabled = true;
+            btn.innerHTML = 'Sending OTP...';
+
+            const payload = {
+                visitor_name: document.getElementById('visitor_name').value.trim(),
+                visitor_mobile: document.getElementById('visitor_mobile').value.trim(),
+                visitor_age: document.getElementById('visitor_age').value.trim(),
+                visitor_role: document.getElementById('visitor_role').value,
+                hospital_name: document.getElementById('hospital_name').value.trim(),
+                location: document.getElementById('location').value.trim(),
+                visitor_email: document.getElementById('visitor_email').value.trim(),
+                qualification: document.getElementById('qualification').value.trim(),
+                medical_registration_number: document.getElementById('medical_registration_number').value.trim()
+            };
+
+            try {
+                const response = await fetch(`/qr/${encodeURIComponent(qrIdentifier)}/request-consultation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    activeChallengeId = data.challenge_id;
+                    document.getElementById('challenge_id').value = data.challenge_id;
+                    document.getElementById('maskedDestinationText').textContent = data.masked_destination;
+                    document.getElementById('modalStep1').style.display = 'none';
+                    document.getElementById('modalStep2').style.display = 'block';
+                    startOtpTimer(data.expires_in_seconds || 900);
+                    document.getElementById('otp_code').focus();
+                } else {
+                    errorBox.textContent = data.error || 'Failed to dispatch OTP. Please check your details.';
+                    errorBox.style.display = 'block';
+                }
+            } catch (err) {
+                errorBox.textContent = 'Network error while requesting OTP. Please try again.';
+                errorBox.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>Send Patient OTP</span> →';
+            }
+        }
+
+        async function handleVerifyOTP(event) {
+            event.preventDefault();
+            const btn = document.getElementById('btnVerifyOTP');
+            const errorBox = document.getElementById('otpErrorMessage');
+            const successBox = document.getElementById('otpSuccessMessage');
+            errorBox.style.display = 'none';
+            successBox.style.display = 'none';
+
+            const otpVal = document.getElementById('otp_code').value.trim();
+            if (otpVal.length !== 4) {
+                errorBox.textContent = 'Please enter a valid 4-digit numeric OTP.';
+                errorBox.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = 'Verifying...';
+
+            try {
+                const response = await fetch(`/qr/${encodeURIComponent(qrIdentifier)}/verify-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        challenge_id: activeChallengeId || document.getElementById('challenge_id').value,
+                        otp_code: otpVal
+                    })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    successBox.textContent = '✓ Patient consent verified! Redirecting to Clinical Workspace...';
+                    successBox.style.display = 'block';
+                    if (countdownTimer) clearInterval(countdownTimer);
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 800);
+                } else {
+                    errorBox.textContent = data.error || 'Verification failed. Please check the OTP.';
+                    errorBox.style.display = 'block';
+                }
+            } catch (err) {
+                errorBox.textContent = 'Network error during verification. Please try again.';
+                errorBox.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>Verify & Open Workspace</span>';
+            }
+        }
+
+        
+        // ============================================================
+        // MSG91 OTP WIDGET INTEGRATION
+        // ============================================================
+        const msg91WidgetId = "";
+        const msg91TokenAuth = "";
+
+        if (typeof initSendOTP !== "undefined" && msg91WidgetId && msg91TokenAuth) {
+            try {
+                window.msg91Config = {
+                    widgetId: msg91WidgetId,
+                    tokenAuth: msg91TokenAuth,
+                    exposeMethods: true,
+                    success: async (tokenData) => {
+                        console.log("MSG91 Widget verification success:", tokenData);
+                        const token = typeof tokenData === "string" ? tokenData : ((tokenData && (tokenData["access-token"] || tokenData.message)) || "");
+                        if (token) {
+                            await verifyExternalWithToken(token);
+                        }
+                    },
+                    failure: (err) => {
+                        console.warn("MSG91 Widget failure:", err);
+                    }
+                };
+                initSendOTP(window.msg91Config);
+            } catch(e) {
+                console.warn("MSG91 initSendOTP notice:", e);
+            }
+        }
+
+        async function verifyExternalWithToken(accessToken) {
+            const successBox = document.getElementById('otpSuccessMessage');
+            const errorBox = document.getElementById('otpErrorMessage');
+            errorBox.style.display = 'none';
+
+            try {
+                const response = await fetch(`/qr/${encodeURIComponent(qrIdentifier)}/verify-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        access_token: accessToken,
+                        challenge_id: activeChallengeId || document.getElementById('challenge_id').value
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    successBox.textContent = '✓ Verified via MSG91! Redirecting to Clinical Workspace...';
+                    successBox.style.display = 'block';
+                    if (countdownTimer) clearInterval(countdownTimer);
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 800);
+                } else {
+                    errorBox.textContent = data.error || 'Token verification failed.';
+                    errorBox.style.display = 'block';
+                }
+            } catch (err) {
+                errorBox.textContent = 'Network error during token verification.';
+                errorBox.style.display = 'block';
+            }
+        }
+
+        async function handleResendOTP() {
+            const btn = document.getElementById('btnResendOTP');
+            btn.disabled = true;
+            btn.textContent = 'Resending...';
+            await handleRequestConsultation(new Event('submit'));
+            btn.disabled = false;
+            btn.textContent = 'Resend OTP';
+        }
+    
+document.addEventListener("DOMContentLoaded", function() {
+    const btn = document.getElementById("btnRequestConsultation");
+    if (btn) {
+        btn.addEventListener("click", openConsultationModal);
+    }
+
+    const modal = document.getElementById("consultationModal");
+    if (modal) {
+        modal.addEventListener("click", function(e) {
+            if (e.target === this) closeConsultationModal();
+        });
+    }
+
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") {
+            closeConsultationModal();
+        }
+    });
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+{
+  "OMC-QR-2C47DDD338B56128": {
+    "token": "OMC-QR-2C47DDD338B56128",
+    "patient_id": "p_test_123",
+    "health_id": "OMC-P9999",
+    "created_at": "2026-11-07T17:39:26.774363+00:00",
+    "is_revoked": false
+  },
+  "OMC-QR-88B4A29CBFD4078D": {
+    "token": "OMC-QR-88B4A29CBFD4078D",
+    "patient_id": "test-patient-uuid-1234",
+    "health_id": "OMC-P9999",
+    "created_at": "2026-11-07T17:55:18.442298+00:00",
+    "is_revoked": false
+  },
+  "OMC-QR-FD03C9083A67A280": {
+    "token": "OMC-QR-FD03C9083A67A280",
+    "patient_id": "a8360a17-d8a0-4524-bcc2-b1b4775e5c4f",
+    "health_id": "OMC-P5C4F",
+    "created_at": "2026-11-07T18:03:01.940636+00:00",
+    "is_revoked": false
+  },
+  "OMC-QR-38A73F512A18DAF7": {
+    "token": "OMC-QR-38A73F512A18DAF7",
+    "patient_id": "11111111-2222-3333-4444-555555555555",
+    "health_id": "",
+    "created_at": "2026-11-08T16:44:30.599655+00:00",
+    "is_revoked": false
+  },
+  "OMC-QR-26DE9A74559AFF1E": {
+    "token": "OMC-QR-26DE9A74559AFF1E",
+    "patient_id": "test-patient-uuid-999",
+    "health_id": "OMC-P8888",
+    "created_at": "2026-11-08T16:49:58.768215+00:00",
+    "is_revoked": false
+  },
+  "OMC-QR-29282E5ACE09CBF7": {
+    "token": "OMC-QR-29282E5ACE09CBF7",
+    "patient_id": "1d888c6e-2b77-491c-875f-4e2c2dafd678",
+    "health_id": "",
+    "created_at": "2026-11-09T06:35:06.280996+00:00",
+    "is_revoked": false
+  }
+}

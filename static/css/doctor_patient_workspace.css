@@ -4996,3 +4996,89 @@
 
 
 
+
+
+/* =========================================================
+   EXTERNAL CONSULTATION READ-ONLY BANNER
+   ========================================================= */
+.external-consultation-banner {
+    position: sticky;
+    top: 10px;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 2px solid #f59e0b;
+    border-radius: 14px;
+    padding: 16px 22px;
+    margin-bottom: 24px;
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.15);
+}
+
+.banner-content-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.banner-badge-icon {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.banner-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #92400e;
+    margin-bottom: 4px;
+    letter-spacing: 0.5px;
+}
+
+.banner-desc {
+    font-size: 13px;
+    color: #b45309;
+    margin: 0;
+}
+
+.banner-timer-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #ffffff;
+    border: 1.5px solid #fbbf24;
+    padding: 8px 16px;
+    border-radius: 10px;
+    min-width: 130px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.timer-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #92400e;
+    letter-spacing: 0.5px;
+}
+
+.timer-digits {
+    font-size: 22px;
+    font-weight: 800;
+    color: #b45309;
+    font-family: monospace, monospace;
+}
+
+@media (max-width: 768px) {
+    .external-consultation-banner {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 14px 16px;
+    }
+    .banner-timer-box {
+        width: 100%;
+        margin-top: 10px;
+        flex-direction: row;
+        justify-content: space-between;
+    }
+}

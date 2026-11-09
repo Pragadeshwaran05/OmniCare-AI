@@ -266,7 +266,11 @@
             <!-- RIGHT SIDE -->
 
         <div class="common-topbar-actions">
-
+        {% if is_external_consultation %}
+            <span style="background: #f0fdfa; color: #0f766e; border: 1px solid #99f6e4; padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                🔒 External Read-Only Session
+            </span>
+        {% else %}
         <span
             class="common-topbar-action"
             title="Notifications"
@@ -283,11 +287,12 @@
         >
             👤
         </a>
-
+        {% endif %}
     </div>
         </header>
 
 
+        {% if not is_external_consultation %}
         <!-- =================================================
             SIDEBAR OVERLAY
             ================================================= -->
@@ -582,13 +587,14 @@
             </div>
 
         </aside>
+        {% endif %}
 
 
         <!-- =================================================
             MAIN CONTENT
             ================================================= -->
 
-        <main class="doctor-main">
+        <main class="doctor-main" {% if is_external_consultation %}style="margin-left: 0 !important; width: 100% !important; max-width: 100% !important;"{% endif %}>
 
             {% block content %}
             {% endblock %}
@@ -596,6 +602,7 @@
         </main>
 
 
+        {% if not is_external_consultation %}
         <!-- =================================================
             COMMON BOTTOM NAVIGATION
             ================================================= -->
@@ -708,6 +715,7 @@
             </a>
 
         </nav>
+        {% endif %}
 
 
         <!-- =================================================

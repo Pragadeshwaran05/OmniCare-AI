@@ -1,5 +1,5 @@
 /* =========================================================
-   OMNICARE AI - PUBLIC PATIENT INFORMATION (QR SCAN PAGE)
+   OMNICARE AI - PUBLIC PATIENT INFORMATION & EXTERNAL CONSULTATION
    ========================================================= */
 
 * {
@@ -50,12 +50,12 @@ body {
 }
 
 .brand-icon {
-    color: #7c3aed;
+    color: #0d9488;
     margin-right: 6px;
 }
 
 .brand-logo span {
-    color: #7c3aed;
+    color: #0d9488;
 }
 
 .brand-tagline {
@@ -83,7 +83,7 @@ body {
     border: 1px solid #a7f3d0;
     padding: 8px 20px;
     border-radius: 50px;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     box-shadow: 0 2px 6px rgba(16, 185, 129, 0.1);
 }
@@ -92,12 +92,12 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     background-color: #10b981;
     color: #ffffff;
     border-radius: 50%;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: bold;
 }
 
@@ -115,22 +115,23 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 10px;
+    word-break: break-word;
 }
 
 .health-id-badge {
     display: inline-block;
-    background-color: #f3effe;
-    color: #4c1d95;
-    border: 1px solid #ddd6fe;
+    background-color: #f0fdfa;
+    color: #0f766e;
+    border: 1px solid #99f6e4;
     padding: 6px 18px;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
 }
 
 .health-id-badge strong {
     font-weight: 700;
-    color: #24105f;
+    color: #115e59;
     letter-spacing: 0.5px;
 }
 
@@ -153,9 +154,9 @@ body {
 }
 
 .section-title {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
-    color: #6b21a8;
+    color: #0d9488;
     letter-spacing: 1.2px;
     text-transform: uppercase;
     margin-bottom: 16px;
@@ -170,10 +171,6 @@ body {
 .info-item {
     display: flex;
     flex-direction: column;
-}
-
-.info-item.full-width {
-    grid-column: 1 / -1;
 }
 
 .info-label {
@@ -191,19 +188,52 @@ body {
 }
 
 /* ---------------------------------------------------------
-   PROTECTED CARD
+   STRICT PRIVACY NOTICE BOX
+   --------------------------------------------------------- */
+.privacy-notice-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    text-align: left;
+}
+
+.privacy-icon {
+    font-size: 24px;
+    line-height: 1;
+}
+
+.privacy-text-area h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 4px;
+}
+
+.privacy-text-area p {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/* ---------------------------------------------------------
+   PROTECTED CARD & EXTERNAL CONSULTATION BUTTON
    --------------------------------------------------------- */
 .protected-card {
     background-color: #faf8ff;
     border: 1.5px dashed #c4b5fd;
-    border-radius: 14px;
-    padding: 24px 20px;
+    border-radius: 16px;
+    padding: 26px 22px;
     margin: 24px 0;
     text-align: center;
 }
 
 .lock-icon {
-    font-size: 28px;
+    font-size: 32px;
     margin-bottom: 8px;
 }
 
@@ -219,45 +249,480 @@ body {
 .protected-text {
     font-size: 14px;
     color: #5b21b6;
-    max-width: 480px;
-    margin: 0 auto;
+    max-width: 500px;
+    margin: 0 auto 18px;
     line-height: 1.5;
+}
+
+.consultation-action-container {
+    margin-top: 14px;
+}
+
+.btn-external-consultation {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #0d9488, #0f766e);
+    color: #ffffff;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(13, 148, 136, 0.3);
+    transition: all 0.2s ease;
+    width: 100%;
+    max-width: 380px;
+}
+
+.btn-external-consultation:hover {
+    background: linear-gradient(135deg, #0f766e, #115e59);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(13, 148, 136, 0.4);
+}
+
+.consultation-subtext {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 8px;
+}
+
+/* ---------------------------------------------------------
+   INVITATION SECTION
+   --------------------------------------------------------- */
+.invitation-section {
+    background: #f8fafc;
+    border-radius: 14px;
+    padding: 20px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.invitation-section h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.invitation-section p {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 14px;
+    line-height: 1.5;
+}
+
+.invitation-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-invite-doctor,
+.btn-invite-patient {
+    display: inline-block;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-invite-doctor {
+    background: #24105f;
+    color: #ffffff;
+}
+
+.btn-invite-doctor:hover {
+    background: #3b1b8a;
+}
+
+.btn-invite-patient {
+    background: #ffffff;
+    color: #0f766e;
+    border: 1px solid #99f6e4;
+}
+
+.btn-invite-patient:hover {
+    background: #f0fdfa;
 }
 
 /* ---------------------------------------------------------
    FOOTER
    --------------------------------------------------------- */
 .card-footer {
-    font-size: 13px;
-    color: #6b7280;
+    font-size: 12px;
+    color: #94a3b8;
     font-weight: 500;
     letter-spacing: 0.5px;
-    margin-top: 16px;
+    margin-top: 18px;
 }
 
 /* ---------------------------------------------------------
-   RESPONSIVE DESIGN (MOBILE)
+   MODAL STYLES
+   --------------------------------------------------------- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    z-index: 9999;
+    overflow-y: auto;
+}
+
+.modal-card {
+    background: #ffffff;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 580px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 28px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+    border: 1px solid #e2e8f0;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.modal-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.modal-icon {
+    font-size: 28px;
+}
+
+.modal-title-group h2 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #1e1b4b;
+}
+
+.modal-subtitle {
+    font-size: 13px;
+    color: #0d9488;
+    font-weight: 600;
+}
+
+.modal-close-btn {
+    background: #f1f5f9;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 16px;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.step-description {
+    font-size: 14px;
+    color: #475569;
+    margin-bottom: 18px;
+    line-height: 1.5;
+}
+
+.modal-alert {
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    line-height: 1.4;
+}
+
+.modal-alert-error {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+}
+
+.modal-alert-success {
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #047857;
+}
+
+/* Form inputs */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 14px;
+}
+
+.form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 5px;
+}
+
+.form-group .required {
+    color: #dc2626;
+}
+
+.form-group input,
+.form-group select {
+    padding: 10px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #1e293b;
+    background: #ffffff;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #0d9488;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+
+.field-hint {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.doctor-fields-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.privacy-consent-notice {
+    background: #f0fdfa;
+    border: 1px solid #ccfbf1;
+    color: #115e59;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn-cancel {
+    padding: 10px 20px;
+    background: #f1f5f9;
+    color: #475569;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-confirm {
+    padding: 10px 24px;
+    background: #0d9488;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
+}
+
+.btn-confirm:hover {
+    background: #0f766e;
+}
+
+/* OTP Step */
+.otp-instruction-card {
+    background: #f0fdfa;
+    border: 1px solid #99f6e4;
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.otp-phone-icon {
+    font-size: 32px;
+    margin-bottom: 6px;
+}
+
+.otp-instruction-card h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: #0f766e;
+    margin-bottom: 6px;
+}
+
+.masked-dest-badge {
+    background: #ccfbf1;
+    color: #115e59;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    display: inline-block;
+}
+
+.patient-instruction {
+    font-size: 13px;
+    color: #047857;
+    margin-top: 10px;
+    font-weight: 600;
+}
+
+.otp-input-container {
+    text-align: center;
+    margin: 20px 0 16px;
+}
+
+.otp-input-container label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.otp-input-container input {
+    font-size: 32px;
+    letter-spacing: 12px;
+    text-align: center;
+    padding: 12px 16px;
+    border: 2px solid #0d9488;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto;
+    font-weight: 800;
+    color: #0f766e;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.12);
+}
+
+.otp-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 280px;
+    margin: 0 auto 16px;
+    font-size: 13px;
+}
+
+.otp-timer {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.otp-timer strong {
+    color: #0d9488;
+    font-weight: 700;
+}
+
+.btn-resend-link {
+    background: none;
+    border: none;
+    color: #0d9488;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+/* ---------------------------------------------------------
+   RESPONSIVE DESIGN (320px to 640px)
    --------------------------------------------------------- */
 @media (max-width: 640px) {
     body {
-        padding: 16px 10px;
+        padding: 14px 8px;
     }
 
     .patient-info-card {
-        padding: 24px 18px;
+        padding: 24px 16px;
         border-radius: 16px;
     }
 
     .patient-name {
-        font-size: 22px;
+        font-size: 20px;
     }
 
     .info-grid {
         grid-template-columns: 1fr;
-        gap: 14px;
+        gap: 12px;
     }
 
     .brand-logo {
         font-size: 24px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .modal-card {
+        padding: 20px 16px;
+    }
+
+    .btn-external-consultation {
+        width: 100%;
+        font-size: 14px;
+        padding: 12px 18px;
+    }
+
+    .invitation-buttons {
+        flex-direction: column;
+    }
+
+    .btn-invite-doctor,
+    .btn-invite-patient {
+        width: 100%;
+    }
+
+    .otp-input-container input {
+        font-size: 26px;
+        letter-spacing: 8px;
+        max-width: 240px;
     }
 }
