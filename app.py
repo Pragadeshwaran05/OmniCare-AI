@@ -6424,43 +6424,78 @@ def doctor_patient_ai_sources(patient_id):
 )
 def doctor_patient_trend_data(patient_id):
     """
-    Secure server-side endpoint for retrieving filtered health trend
-    measurements, charts, summaries, and AI observations.
+    Secure server-side endpoint for retrieving filtered health trends.
+    Supports authorized doctors and external consultations.
     """
+
     # --------------------------------------------------------
-    # 1. CHECK AUTHORIZED ACCESS (DOCTOR OR EXTERNAL CONSULTATION)
+    # 1. VERIFY PATIENT WORKSPACE ACCESS
     # --------------------------------------------------------
     is_auth, access_info, err_msg = check_workspace_access(patient_id)
+
     if not is_auth:
         return {
             "success": False,
-            "message": err_msg or "You do not have active access to this patient's records."
+            "message": err_msg or "Unauthorized patient access."
         }, 403
 
-    doctor_id = access_info.get("doctor_id", "EXTERNAL_CONSULTATION")
+    access_info = access_info or {}
+
+    doctor_id = access_info.get(
+        "doctor_id",
+        "EXTERNAL_CONSULTATION"
+    )
 
     try:
 
-        access = access_requests[0]
+        # ----------------------------------------------------
+        # 2. GET ACCESS RECORD FROM AUTHORIZATION RESPONSE
+        # ----------------------------------------------------
+        access = access_info.get("access_record") or {}
 
         # ----------------------------------------------------
         # 3. CHECK ACCESS EXPIRATION
         # ----------------------------------------------------
         expires_at = access.get("expires_at")
-        if expires_at:
-            expiry_time = datetime.fromisoformat(
-                expires_at.replace("Z", "+00:00")
-            )
-            current_time = datetime.now(timezone.utc)
 
-            if current_time >= expiry_time:
-                supabase_admin.table("access_requests").update({
-                    "status": "expired"
-                }).eq("id", access["id"]).execute()
+        if expires_at:
+
+            try:
+                expiry_time = datetime.fromisoformat(
+                    expires_at.replace("Z", "+00:00")
+                )
+
+                if expiry_time.tzinfo is None:
+                    expiry_time = expiry_time.replace(
+                        tzinfo=timezone.utc
+                    )
+
+                current_time = datetime.now(timezone.utc)
+
+                if current_time >= expiry_time:
+
+                    if access.get("id"):
+                        (
+                            supabase_admin
+                            .table("access_requests")
+                            .update({"status": "expired"})
+                            .eq("id", access["id"])
+                            .eq("patient_id", patient_id)
+                            .execute()
+                        )
+
+                    return {
+                        "success": False,
+                        "message": "This patient's temporary access has expired."
+                    }, 403
+
+            except (ValueError, TypeError, AttributeError) as expiry_error:
+
+                print("TREND ACCESS EXPIRY ERROR:", repr(expiry_error))
 
                 return {
                     "success": False,
-                    "message": "This patient's temporary access has expired."
+                    "message": "Unable to verify access expiration."
                 }, 403
 
         # ----------------------------------------------------
@@ -6474,7 +6509,15 @@ def doctor_patient_trend_data(patient_id):
             .single()
             .execute()
         )
+
         patient = patient_response.data or {}
+
+        if not patient:
+            return {
+                "success": False,
+                "message": "Patient not found."
+            }, 404
+
         patient_name = (
             patient.get("full_name")
             or patient.get("name")
@@ -6482,7 +6525,7 @@ def doctor_patient_trend_data(patient_id):
         )
 
         # ----------------------------------------------------
-        # 5. GET AUTHORIZED MEDICAL RECORDS
+        # 5. GET PATIENT MEDICAL RECORDS
         # ----------------------------------------------------
         records_response = (
             supabase_admin
@@ -6492,10 +6535,11 @@ def doctor_patient_trend_data(patient_id):
             .order("uploaded_at", desc=True)
             .execute()
         )
+
         records = records_response.data or []
 
         # ----------------------------------------------------
-        # 6. GET HEALTH TIMELINE EVENTS
+        # 6. GET PATIENT HEALTH TIMELINE
         # ----------------------------------------------------
         timeline_response = (
             supabase_admin
@@ -6505,17 +6549,20 @@ def doctor_patient_trend_data(patient_id):
             .order("event_date", desc=True)
             .execute()
         )
+
         timeline_events = timeline_response.data or []
 
         # ----------------------------------------------------
-        # 7. PARSE FILTER PARAMETERS
+        # 7. GET FILTER PARAMETERS
         # ----------------------------------------------------
         req_data = request.get_json(silent=True) or {}
+
         time_period = req_data.get("time_period", "all")
+
         selected_params = req_data.get("parameters")
 
         # ----------------------------------------------------
-        # 8. COMPUTE TREND ANALYSIS
+        # 8. GENERATE HEALTH TREND ANALYSIS
         # ----------------------------------------------------
         trend_data = get_trend_analysis_data(
             timeline_events=timeline_events,
@@ -6525,25 +6572,41 @@ def doctor_patient_trend_data(patient_id):
             patient_name=patient_name
         )
 
+        # ----------------------------------------------------
+        # 9. RETURN SUCCESS RESPONSE
+        # ----------------------------------------------------
+        print("=" * 65)
+        print("DOCTOR TREND ANALYSIS SUCCESS")
+        print("=" * 65)
+        print("Patient ID:", patient_id)
+        print("Doctor ID:", doctor_id)
+        print("Records:", len(records))
+        print("Timeline Events:", len(timeline_events))
+        print("Time Period:", time_period)
+        print("Selected Parameters:", selected_params)
+        print("=" * 65)
+
         return {
             "success": True,
             "trend_data": trend_data
-        }
+        }, 200
 
     except Exception as e:
-        print("=" * 70)
+
+        print("=" * 65)
         print("DOCTOR TREND DATA API ERROR")
-        print("=" * 70)
+        print("=" * 65)
         print("Patient ID:", patient_id)
-        print("Doctor ID :", doctor_id)
-        print("Error     :", repr(e))
-        print("=" * 70)
+        print("Doctor ID:", doctor_id)
+        print("Error:", repr(e))
+        import traceback
+        traceback.print_exc()
+        print("=" * 65)
 
         return {
             "success": False,
             "message": "An error occurred while analyzing health trends."
         }, 500
-
 
 @app.route("/doctor/shared-medical-records")
 def doctor_shared_medical_records():
