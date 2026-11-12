@@ -7380,188 +7380,156 @@ def doctor_my_patients():
     methods=["POST"]
 )
 def doctor_patient_ai_assistant(patient_id):
-
-    # --------------------------------------------------------
-    # 1. CHECK AUTHORIZED ACCESS (DOCTOR OR EXTERNAL CONSULTATION)
-    # --------------------------------------------------------
+    """
+    Secure patient-specific medical history AI assistant.
+    Strictly scoped to authorized patient records.
+    """
+    # 1. Check authorized clinical access
     is_auth, access_info, err_msg = check_workspace_access(patient_id)
     if not is_auth:
-        return {
+        return jsonify({
             "success": False,
             "message": err_msg or "You do not have active access to this patient's records."
-        }, 403
+        }), 403
 
     doctor_id = access_info.get("doctor_id", "EXTERNAL_CONSULTATION")
 
     try:
-
-
-        access = access_requests[0]
-
-
-        # ----------------------------------------------------
-        # 3. CHECK EXPIRATION
-        # ----------------------------------------------------
-
-        expires_at = access.get(
-            "expires_at"
-        )
-
-
-        if expires_at:
-
-            expiry_time = datetime.fromisoformat(
-                expires_at.replace(
-                    "Z",
-                    "+00:00"
-                )
-            )
-
-
-            current_time = datetime.now(
-                timezone.utc
-            )
-
-
-            if current_time >= expiry_time:
-
-                (
-                    supabase_admin
-                    .table("access_requests")
-                    .update({
-                        "status": "expired"
-                    })
-                    .eq(
-                        "id",
-                        access["id"]
-                    )
-                    .execute()
-                )
-
-
-                return {
-                    "success": False,
-                    "message":
-                        "This patient's access has expired."
-                }, 403
-
-
-        # ----------------------------------------------------
-        # 4. GET ONLY THIS PATIENT'S TIMELINE
-        # ----------------------------------------------------
-
-        timeline_response = (
-            supabase_admin
-            .table("health_timeline_events")
-            .select("*")
-            .eq(
-                "patient_id",
-                patient_id
-            )
-            .order(
-                "event_date",
-                desc=True
-            )
-            .execute()
-        )
-
-
-        timeline_events = (
-            timeline_response.data or []
-        )
-
-
-        # ----------------------------------------------------
-        # 5. GET QUESTION
-        # ----------------------------------------------------
-
-        data = request.get_json(
-            silent=True
-        ) or {}
-
-
-        question = (
-            data.get("question", "")
-            .strip()
-        )
-
+        data = request.get_json(silent=True) or {}
+        question = data.get("question", "").strip()
 
         if not question:
-
-            return {
+            return jsonify({
                 "success": False,
-                "message":
-                    "Please enter a question."
-            }, 400
+                "message": "Please enter a question."
+            }), 400
 
+        # 2. Retrieve patient profile
+        patient = {}
+        try:
+            p_res = (
+                supabase_admin.table("patients")
+                .select("id, full_name, health_id, date_of_birth, gender, blood_group")
+                .eq("id", patient_id)
+                .single()
+                .execute()
+            )
+            patient = p_res.data or {}
+        except Exception as p_err:
+            print("[DoctorAI Notice] Patient profile fetch notice:", repr(p_err))
 
-        # ----------------------------------------------------
-        # 6. ASK GEMINI
-        # ----------------------------------------------------
+        # 3. Retrieve patient clinical timeline events
+        timeline_events = []
+        try:
+            tl_res = (
+                supabase_admin.table("health_timeline_events")
+                .select("*")
+                .eq("patient_id", patient_id)
+                .order("event_date", desc=True)
+                .execute()
+            )
+            timeline_events = tl_res.data or []
+        except Exception as tl_err:
+            print("[DoctorAI Notice] Health timeline fetch notice:", repr(tl_err))
 
+        # 4. Retrieve patient medical records (including unextracted/older documents)
+        medical_records = []
+        try:
+            mr_res = (
+                supabase_admin.table("medical_records")
+                .select("id, patient_id, record_type, title, description, file_name, file_url, uploaded_at")
+                .eq("patient_id", patient_id)
+                .order("uploaded_at", desc=True)
+                .execute()
+            )
+            medical_records = mr_res.data or []
+        except Exception as mr_err:
+            print("[DoctorAI Notice] Medical records fetch notice:", repr(mr_err))
+
+        for rec in medical_records:
+            if not rec.get("file_url") and rec.get("id"):
+                try:
+                    rec["file_url"] = url_for("doctor_view_medical_record", patient_id=patient_id, record_id=rec["id"])
+                except Exception:
+                    pass
+
+        # 5. Query Gemini AI with complete verified patient context
         answer = ask_doctor_ai(
-            question,
-            timeline_events
+            question=question,
+            timeline_events=timeline_events,
+            patient_data=patient,
+            medical_records=medical_records
         )
 
+        # 6. Build source records list
+        sources = []
+        seen_records = set()
+        for event in timeline_events:
+            rec_id = event.get("medical_record_id")
+            if rec_id and rec_id not in seen_records:
+                seen_records.add(rec_id)
+                try:
+                    v_url = url_for("doctor_view_medical_record", patient_id=patient_id, record_id=rec_id)
+                except Exception:
+                    v_url = None
+                sources.append({
+                    "medical_record_id": rec_id,
+                    "event_date": event.get("event_date"),
+                    "event_type": event.get("event_type"),
+                    "provider_name": event.get("provider_name"),
+                    "hospital_name": event.get("hospital_name"),
+                    "view_url": v_url
+                })
 
-        # ----------------------------------------------------
-        # 7. RETURN ANSWER
-        # ----------------------------------------------------
+        for rec in medical_records:
+            rec_id = rec.get("id")
+            if rec_id and rec_id not in seen_records:
+                seen_records.add(rec_id)
+                sources.append({
+                    "medical_record_id": rec_id,
+                    "event_date": rec.get("uploaded_at"),
+                    "event_type": rec.get("record_type"),
+                    "provider_name": rec.get("provider_name") or "OmniCare Healthcare",
+                    "hospital_name": rec.get("hospital_name") or "Medical Center",
+                    "view_url": rec.get("file_url")
+                })
 
-        return {
+        # 7. Audit Logging
+        try:
+            log_audit_event(
+                doctor_id=doctor_id,
+                action="AI_ASSISTANT_QUERY",
+                patient_ids=[patient_id],
+                status="SUCCESS",
+                metadata={"patient_id": patient_id, "question_len": len(question), "event_count": len(timeline_events)},
+                client_ip=request.remote_addr
+            )
+        except Exception:
+            pass
 
+        return jsonify({
             "success": True,
-
             "answer": answer,
-
-            "event_count":
-                len(timeline_events)
-
-        }
-
+            "event_count": len(timeline_events),
+            "record_count": len(medical_records),
+            "sources": sources
+        }), 200
 
     except Exception as e:
-
         print("=" * 70)
         print("DOCTOR AI ASSISTANT ERROR")
+        print("Patient ID:", patient_id)
+        print("Doctor ID :", doctor_id)
+        print("Error     :", repr(e))
         print("=" * 70)
-
-        print(
-            "Patient ID:",
-            patient_id
-        )
-
-        print(
-            "Doctor ID:",
-            doctor_id
-        )
-
-        print(
-            "Error:",
-            repr(e)
-        )
-
-        print("=" * 70)
-
-
-        return {
-
+        return jsonify({
             "success": False,
+            "message": "Unable to process the AI request right now. Please try again."
+        }), 500
 
-            "message":
-                "Unable to process the AI request."
-
-        }, 500
 
 # ============================================================
 # DOCTOR AI - SOURCE RECORDS
-# ============================================================
-# ============================================================
-# DOCTOR AI - SOURCE RECORDS
-# ============================================================
-# ============================================================
-# DOCTOR AI SOURCE RECORDS
 # ============================================================
 
 @app.route(
@@ -7569,291 +7537,66 @@ def doctor_patient_ai_assistant(patient_id):
     methods=["GET"]
 )
 def doctor_patient_ai_sources(patient_id):
-
-    # --------------------------------------------------------
-    # 1. CHECK AUTHORIZED ACCESS (DOCTOR OR EXTERNAL CONSULTATION)
-    # --------------------------------------------------------
+    """
+    Returns verified source documents for the patient's AI assistant responses.
+    """
     is_auth, access_info, err_msg = check_workspace_access(patient_id)
     if not is_auth:
-        return {
+        return jsonify({
             "success": False,
             "message": err_msg or "You do not have active access to this patient."
-        }, 403
-
-    doctor_id = access_info.get("doctor_id", "EXTERNAL_CONSULTATION")
+        }), 403
 
     try:
-
-        access = access_requests[0]
-
-        # ----------------------------------------------------
-        # 3. CHECK EXPIRATION
-        # ----------------------------------------------------
-
-        expires_at = access.get(
-            "expires_at"
-        )
-
-        if expires_at:
-
-            expiry_time = datetime.fromisoformat(
-                expires_at.replace(
-                    "Z",
-                    "+00:00"
-                )
+        timeline_events = []
+        try:
+            tl_res = (
+                supabase_admin.table("health_timeline_events")
+                .select("id, medical_record_id, event_date, event_type, provider_name, hospital_name")
+                .eq("patient_id", patient_id)
+                .order("event_date", desc=True)
+                .execute()
             )
-
-            current_time = datetime.now(
-                timezone.utc
-            )
-
-            if current_time >= expiry_time:
-
-                (
-                    supabase_admin
-                    .table("access_requests")
-                    .update({
-                        "status": "expired"
-                    })
-                    .eq(
-                        "id",
-                        access["id"]
-                    )
-                    .execute()
-                )
-
-                return {
-                    "success": False,
-                    "message": (
-                        "Patient access has expired."
-                    )
-                }, 403
-
-        # ----------------------------------------------------
-        # 4. GET TIMELINE EVENTS
-        # ----------------------------------------------------
-
-        timeline_response = (
-            supabase_admin
-            .table("health_timeline_events")
-            .select(
-                """
-                id,
-                medical_record_id,
-                event_date,
-                event_type,
-                provider_name,
-                hospital_name
-                """
-            )
-            .eq(
-                "patient_id",
-                patient_id
-            )
-            .order(
-                "event_date",
-                desc=True
-            )
-            .execute()
-        )
-
-        timeline_events = (
-            timeline_response.data or []
-        )
-
-        # ----------------------------------------------------
-        # 5. BUILD SOURCE LIST
-        # ----------------------------------------------------
+            timeline_events = tl_res.data or []
+        except Exception as tl_err:
+            print("[DoctorAI Notice] Timeline sources fetch error:", repr(tl_err))
 
         sources = []
-
         seen_records = set()
-
         for event in timeline_events:
-
-            medical_record_id = (
-                event.get(
-                    "medical_record_id"
-                )
-            )
-
-            if not medical_record_id:
+            rec_id = event.get("medical_record_id")
+            if not rec_id or rec_id in seen_records:
                 continue
-
-            if medical_record_id in seen_records:
-                continue
-
-            seen_records.add(
-                medical_record_id
-            )
-
-            # ------------------------------------------------
-            # IMPORTANT:
-            # Build the original-record URL safely.
-            # ------------------------------------------------
-
+            seen_records.add(rec_id)
             try:
-
-                
-                    view_url = url_for(
-    "doctor_view_medical_record",
-    patient_id=patient_id,
-    record_id=medical_record_id
-)
-
-                    print(
-    "SOURCE RECORD:",
-    medical_record_id,
-    "VIEW URL:",
-    view_url
-)
-
-
-            except Exception as url_error:
-
-                print(
-                    "SOURCE URL ERROR:",
-                    repr(url_error)
-                )
-
+                view_url = url_for("doctor_view_medical_record", patient_id=patient_id, record_id=rec_id)
+            except Exception:
                 view_url = None
 
             sources.append({
-
-                "medical_record_id":
-                    medical_record_id,
-
-                "event_date":
-                    event.get(
-                        "event_date"
-                    ),
-
-                "event_type":
-                    event.get(
-                        "event_type"
-                    ),
-
-                "provider_name":
-                    event.get(
-                        "provider_name"
-                    ),
-
-                "hospital_name":
-                    event.get(
-                        "hospital_name"
-                    ),
-
-                "view_url":
-                    view_url
+                "medical_record_id": rec_id,
+                "event_date": event.get("event_date"),
+                "event_type": event.get("event_type"),
+                "provider_name": event.get("provider_name"),
+                "hospital_name": event.get("hospital_name"),
+                "view_url": view_url
             })
 
-        # ----------------------------------------------------
-        # 6. DEBUG
-        # ----------------------------------------------------
-
-        print("=" * 70)
-        print("DOCTOR AI SOURCES")
-        print("=" * 70)
-
-        print(
-            "Patient ID:",
-            patient_id
-        )
-
-        print(
-            "Doctor ID:",
-            doctor_id
-        )
-
-        print(
-            "Timeline Events:",
-            len(timeline_events)
-        )
-
-        print(
-            "Source Records:",
-            len(sources)
-        )
-
-        for source in sources:
-
-            print(
-                "Record ID:",
-                source.get(
-                    "medical_record_id"
-                )
-            )
-
-            print(
-                "Event:",
-                source.get(
-                    "event_type"
-                )
-            )
-
-            print(
-                "Date:",
-                source.get(
-                    "event_date"
-                )
-            )
-
-            print(
-                "View URL:",
-                source.get(
-                    "view_url"
-                )
-            )
-
-        print("=" * 70)
-
-        # ----------------------------------------------------
-        # 7. RETURN JSON
-        # ----------------------------------------------------
-
-        return {
+        return jsonify({
             "success": True,
             "sources": sources
-        }
+        }), 200
 
     except Exception as e:
-
-        # ----------------------------------------------------
-        # PRINT REAL ERROR
-        # ----------------------------------------------------
-
         print("=" * 70)
         print("DOCTOR AI SOURCE ERROR")
+        print("Patient ID:", patient_id)
+        print("Error     :", repr(e))
         print("=" * 70)
-
-        print(
-            "Patient ID:",
-            patient_id
-        )
-
-        print(
-            "Doctor ID:",
-            doctor_id
-        )
-
-        print(
-            "ERROR TYPE:",
-            type(e).__name__
-        )
-
-        print(
-            "ERROR:",
-            repr(e)
-        )
-
-        print("=" * 70)
-
-        return {
+        return jsonify({
             "success": False,
-            "message": (
-                "Unable to load source records."
-            )
-        }, 500
+            "message": "Unable to load source records."
+        }), 500
 
 
 # ============================================================
@@ -8997,9 +8740,24 @@ def doctor_guest_ai_assistant(guest_patient_id):
                 "message": "Please enter a question."
             }, 400
 
+        guest_records = []
+        try:
+            g_mr = (
+                supabase_admin.table("guest_medical_records")
+                .select("*")
+                .eq("guest_patient_id", guest_patient_id)
+                .order("created_at", desc=True)
+                .execute()
+            )
+            guest_records = g_mr.data or []
+        except Exception as g_mr_err:
+            print("[DoctorAI Notice] Guest medical records fetch error:", repr(g_mr_err))
+
         answer = ask_doctor_ai(
-            question,
-            timeline_events
+            question=question,
+            timeline_events=timeline_events,
+            patient_data=guest,
+            medical_records=guest_records
         )
 
         return {

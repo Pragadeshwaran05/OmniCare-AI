@@ -1003,9 +1003,8 @@ async function askDoctorAI(
         );
 
 
-        addDoctorAIMessage(
-            "I could not process your request right now. Please try again."
-        );
+        const errorMsg = (error && error.message) ? error.message : "I could not process your request right now. Please try again.";
+        addDoctorAIMessage(errorMsg);
 
 
     } finally {
