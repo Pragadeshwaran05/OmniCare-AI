@@ -1,0 +1,157 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Registration</title>
+</head>
+<body>
+
+    <h2>Student Registration Form</h2>
+
+    <form action="StudentServlet" method="post">
+
+        Roll Number:
+        <input type="text" name="rollno" required>
+        <br><br>
+
+        Student Name:
+        <input type="text" name="name" required>
+        <br><br>
+
+        Department:
+        <input type="text" name="department" required>
+        <br><br>
+
+        Email:
+        <input type="email" name="email" required>
+        <br><br>
+
+        Age:
+        <input type="number" name="age" required>
+        <br><br>
+
+        <input type="submit" value="Register">
+
+    </form>
+
+</body>
+</html>
+-------------------------------------------
+
+package com.student;
+
+public class Student {
+
+    private String rollno;
+    private String name;
+    private String department;
+    private String email;
+    private int age;
+
+    public Student(String rollno, String name,
+                   String department, String email, int age) {
+
+        this.rollno = rollno;
+        this.name = name;
+        this.department = department;
+        this.email = email;
+        this.age = age;
+    }
+
+    public String getRollno() {
+        return rollno;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public int getAge() {
+        return age;
+    }
+}
+-------------------------------
+
+
+package com.student;
+
+import java.io.IOException;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+import jakarta.servlet.annotation.WebServlet;
+
+@WebServlet("/StudentServlet")
+public class StudentServlet extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+                          throws ServletException, IOException {
+
+        String rollno = request.getParameter("rollno");
+        String name = request.getParameter("name");
+        String department = request.getParameter("department");
+        String email = request.getParameter("email");
+        int age = Integer.parseInt(request.getParameter("age"));
+
+        // Create Student object
+        Student student = new Student(
+            rollno, name, department, email, age
+        );
+
+        // Send student object to JSP
+        request.setAttribute("student", student);
+
+        // Forward request to JSP
+        RequestDispatcher rd =
+            request.getRequestDispatcher("studentview.jsp");
+
+        rd.forward(request, response);
+    }
+}
+----------------------------------------
+
+
+<%@ page import="com.student.Student" %>
+
+<html>
+<head>
+    <title>Student Details</title>
+</head>
+<body>
+
+    <h2>Registration Successful!</h2>
+
+    <%
+        Student s = (Student) request.getAttribute("student");
+    %>
+
+    <h3>Student Information</h3>
+
+    Roll Number: <%= s.getRollno() %>
+    <br><br>
+
+    Name: <%= s.getName() %>
+    <br><br>
+
+    Department: <%= s.getDepartment() %>
+    <br><br>
+
+    Email: <%= s.getEmail() %>
+    <br><br>
+
+    Age: <%= s.getAge() %>
+
+    <br><br>
+
+    <a href="index.html">Register Another Student</a>
+
+</body>
+</html>
